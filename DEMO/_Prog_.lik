@@ -1,0 +1,17 @@
+version : Tue May 12 17:02:06 2026
+
+options : , Microtek24, map, bin, Fill 0xFF
+input   : ".\Release\STARTUP.OBJ", ".\Release\INT_VEC.OBJ", ".\Release\RTC.OBJ", ".\Release\KEY.OBJ", ".\Release\LCD_DISPLAY.OBJ", ".\Release\GXHTV4.OBJ", ".\Release\D_I2C.OBJ", ".\Release\ALARM.OBJ", ".\Release\RF.OBJ", ".\Release\Res_Tbl.obj"
+; No ObjectFileName for MIDIInstrument
+; No ObjectInfo for Audio Resource
+; No ObjectFileName for EquationTable
+; No ObjectFileName for Predefined Resources
+library : 
+body    : "C:\Program Files (x86)\Generalplus\GPIDE_6502 1.3.0\gplus\project\Body\6502\GPL813\\.\ChipInformation\GPL813P01Cx_ChipInfo.conf"
+output  : ".\Release\IT31061B.hdb"
+;<--UserDefineStart-->.\IT31061B.lik
+locate: PAGE0 at 0080h reference
+locate:RFCRAM	at 0180h reference
+locate: CODE  at E000H	;User cannot modify it
+locate: VECTOR at FFFCH
+;<--UserDefineEnd-->

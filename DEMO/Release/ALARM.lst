@@ -1,0 +1,2121 @@
+        Generalplus 6502 Assembler - Version 1.7.1.0  
+              Listing File Has Been Relocated
+
+     1                              .SYNTAX 6502
+     2                              .LINKLIST
+     3                              .SYMBOLS
+     4                              ;==========================================
+     5                              ; Include file area
+     6                              ;==========================================
+     7                              .INCLUDE	GPL813x.inc
+     8                      <       	.IFDEF		GPL813_SERIES
+     9                      <       
+    10                      <       ;---------------------------------
+    11                      <       GPL813P01Cx		.EQU		1
+    12                      <       ;---------------------------------
+    13                      <       
+    14                      <       .IFNDEF GPL813X_Body_inc
+    15                      <       GPL813X_Body_inc:   .EQU    1
+    16                      <       ;==================================================================================
+    17                      <       ; The information contained herein is the exclusive property of
+    18                      <       ; Generalplus Technology Co. And shall not be distributed, reproduced,
+    19                      <       ; or disclosed in whole in part without prior written permission.
+    20                      <       ;       (C) COPYRIGHT 2017   Generalplus TECHNOLOGY CO.                            
+    21                      <       ;                   ALL RIGHTS RESERVED
+    22                      <       ; The entire notice above must be reproduced on all authorized copies.
+    23                      <       ;==================================================================================
+    24                      <       ;==================================================================================
+    25                      <       ; Program Name: GPL813 series register declare
+    26                      <       ; Applied body: GPL813 series
+    27                      <       ; Programmer  : KenLiu
+    28                      <       ; Description : 
+    29                      <       ;             : 
+    30                      <       ; History version
+    31                      <       ; Rev #       Date          Who            Comments
+    32                      <       ; -------  -----------    --------         ----------------------------------------
+    33                      <       ;==================================================================================
+    34                      <       ;==================================================================================
+    35                      <       
+    36                      <       		.IFNDEF	GPL813P01Ax
+    37                      <       		GPL813P01Ax: 	.EQU		0
+    38                      <       		.ENDIF
+    39                      <       		.IFNDEF	GPL813P01Bx
+    40                      <       		GPL813P01Bx: 	.EQU		0
+    41                      <       		.ENDIF
+    42                      <       		.IFNDEF	GPL813P01Cx
+    43                      <       		GPL813P01Cx: 	.EQU		0
+    44                      <       		.ENDIF
+    45                      <        	 
+    46                      <       .IF (GPL813P01Ax)
+    47                      <       GPL813X		.EQU		1
+    48                      <       .ENDIF
+    49                      <       .IF (GPL813P01Bx)
+    50                      <       GPL813X		.EQU		1
+    51                      <       .ENDIF
+    52                      <       .IF (GPL813P01Cx)
+    53                      <       GPL813X		.EQU		1
+    54                      <       .ENDIF
+    55                      <       			.IFDEF	GPL813X
+    56 000000C6             <       		.PAGE0
+    57                      <             
+    58                      <       ;===================  IO Register  ===================
+    59                      <       P_IO_PortA_Dir:     		.EQU	$00
+    60                      <       P_IO_PortA_Data:			.EQU	$02
+    61                      <       		
+    62                      <       P_IO_PortB_Dir:				.EQU	$10
+    63                      <       P_IO_PortB_Data:			.EQU	$12	
+    64                      <       P_IO_PortB_Attrib:			.EQU	$14
+    65                      <       
+    66                      <       P_IO_PortC_Dir:     		.EQU	$01
+    67                      <       P_IO_PortC_Data:			.EQU	$05
+    68                      <       P_IO_PortE_Data:     		.EQU	$03
+    69                      <       P_IO_PortE_DataLatch:		.EQU	$04
+    70                      <       
+    71                      <       P_IO_Ctrl:    			    .EQU	$06
+    72                      <       P_IO_PortE_Dir:				.EQU	$0B
+    73                      <       P_IO_PortD_Attrib			.EQU	$15
+    74                      <       P_IO_PortD_Dir				.EQU	$11
+    75                      <       P_IO_PortD_Data				.EQU	$13
+    76                      <       
+    77                      <       ;==============  Sleep/Wakeup Register  ==============
+    78                      <       P_WAKEUP_Ctrl:			    .EQU	$08
+    79                      <        D_WakeupTimer1:				.EQU	00100000B
+    80                      <        D_WakeupTimer0:				.EQU	00010000B
+    81                      <        D_WakeupTMBB:					.EQU	00001000B
+    82                      <        D_Wakeup128Hz:					.EQU	00000100B
+    83                      <        D_WakeupTMBA:					.EQU	00000010B
+    84                      <        D_WakeupKey:					.EQU	00000001B
+    85                      <        
+    86                      <       P_SYSTEM_Ctrl:			    .EQU	$09
+    87                      <       
+    88                      <       ;=================  Timer Register  ==================
+    89                      <       P_TIMER_TimeBase_Sel:		.EQU	$0A
+    90                      <       P_TIMER_Timer0_Ctrl:		.EQU	$22
+    91                      <        D_TimerEn:						.EQU	10000000B
+    92                      <        D_TimerRiseEdge:				.EQU	00000000B
+    93                      <        D_TimerFallEdge:				.EQU	01000000B
+    94                      <        D_TimerSrcExtA:				.EQU	00000000B
+    95                      <        D_TimerSrcExtA2:				.EQU	00100000B
+    96                      <        D_TimerSrcA_HF:				.EQU	00000000B
+    97                      <        D_TimerSrcA_HFDIV:				.EQU	00000001B
+    98                      <        D_TimerSrcA_EXT:				.EQU	00000010B
+    99                      <        D_TimerSrcA_VDD:				.EQU	00000011B
+   100                      <        D_TimerSrcB_LF:				.EQU	00000000B
+   101                      <        D_TimerSrcB_TMX:				.EQU	00000100B
+   102                      <        D_TimerSrcB_EXTA:				.EQU	00001000B
+   103                      <        D_TimerSrcB_VDD:				.EQU	00001100B
+   104                      <       P_TIMER_TM0Data_LB:			.EQU	$20
+   105                      <       P_TIMER_TM0Data_HB:			.EQU	$21
+   106                      <       P_TIMER_TM0Load_Ctrl:		.EQU	$23
+   107                      <       
+   108                      <       P_TIMER_TM1Data:			.EQU	$25
+   109                      <       P_TIMER_Timer1_Ctrl:		.EQU	$26
+   110                      <        D_Timer1En:					.EQU	10000000B
+   111                      <        D_Timer1_LSCK:					.EQU	00000000B
+   112                      <        D_Timer1_TMBB:					.EQU	00000001B 
+   113                      <        D_Timer1_HSCK:					.EQU	00000010B 
+   114                      <        D_Timer1_HFDIV:				.EQU	00000011B
+   115                      <       P_TIMER_TM1Load_Ctrl:		.EQU	$27
+   116                      <       
+   117                      <       ;==============  CPU & Clock Register  ===============
+   118                      <       P_CLK_CPU_Ctrl:				.EQU	$18
+   119                      <        D_RCHF_Msk:					.EQU	11100000B
+   120                      <        D_RCHF225K:					.EQU	00000000B;225k
+   121                      <        D_RCHF500K:					.EQU	01000000B;500k
+   122                      <        D_RCHF1800K:					.EQU	10000000B;1800k
+   123                      <        D_RCHF1000K:					.EQU	11000000B;1000k
+   124                      <        D_RCHF4000K:					.EQU	00100000B;4000k
+   125                      <        
+   126                      <        D_CPU_Msk:						.EQU	00000111B
+   127                      <        D_CPU_HF:						.EQU	00000000B;HF
+   128                      <        D_CPU_HF2:						.EQU	00000001B;HF/2
+   129                      <        D_CPU_HF4:						.EQU	00000010B;HF/4
+   130                      <        D_CPU_HF8:						.EQU	00000011B;HF/8
+   131                      <        D_CPU_HF16:					.EQU	00000100B;HF/16
+   132                      <       P_CLK_HFDIV_Ctrl:			.EQU	$1A
+   133                      <       P_CLK_32768_En:				.EQU	$0C
+   134                      <        D_LFEnable:					.EQU	00000000B 
+   135                      <        D_LFDisable:					.EQU	10000000B
+   136                      <        D_X32K_WEAK:					.EQU	00000100B
+   137                      <        D_X32K_STRO:					.EQU	00000010B
+   138                      <        D_CAP_EN:						.EQU	00000001B ;With internal CAP
+   139                      <        D_CAP_DIS:						.EQU	00000000B ;With external CAP
+   140                      <       ; D_256TMX_En:                   .EQU	00100000B
+   141                      <       
+   142                      <       ;=================  INT/NMI Register  ================
+   143                      <       P_INT_Ctrl:					.EQU	$0D
+   144                      <        D_IntMask:						.EQU	11111111B
+   145                      <        D_Ext2Int:						.EQU	10000000B
+   146                      <        D_LvdInt:						.EQU	01000000B
+   147                      <        D_Timer0Int:					.EQU	00100000B
+   148                      <        D_TMBBInt:						.EQU	00010000B
+   149                      <        D_TMBAInt:						.EQU	00001000B
+   150                      <        D_128HzInt:					.EQU	00000100B
+   151                      <        D_2KHzInt:						.EQU	00000010B
+   152                      <        D_ExtInt:						.EQU	00000001B
+   153                      <        
+   154                      <       P_INT_2KHz_Clear:			.EQU	$41
+   155                      <       P_INT_128Hz_Clear:			.EQU	$42
+   156                      <       P_INT_TimeBaseA_Clear:		.EQU	$43
+   157                      <       P_INT_TimeBaseB_Clear:		.EQU	$44
+   158                      <       
+   159                      <       P_INT_Timer0_Clear:			.EQU	$45
+   160                      <       P_INT_Ext_Clear:			.EQU	$40
+   161                      <       
+   162                      <       P_INT_Ctrl2:				.EQU	$2D
+   163                      <        D_Int2Mask:             		.EQU	00000011B
+   164                      <        D_Timer1Int:    				.EQU	00000001B
+   165                      <       P_INT_Ext2_Clear:			.EQU	$47			
+   166                      <       P_INT_Timer1_Clear:			.EQU	$48
+   167                      <       
+   168                      <       ;===================  LCD Register  ==================
+   169                      <       P_LCD_Ctrl:					.EQU	$07
+   170                      <        D_LcdConfigMask:       		.EQU	11111101B
+   171                      <        D_Duty_1_8:					.EQU	10001000B
+   172                      <        D_Duty_1_6:					.EQU	11001000B
+   173                      <        D_Duty_1_5:					.EQU	00000100B
+   174                      <        D_Duty_1_4:   					.EQU	01000100B
+   175                      <        D_Duty_1_3:					.EQU	10000100B
+   176                      <        
+   177                      <        D_Bias_1_4:					.EQU	00000000B
+   178                      <        D_Bias_1_3:					.EQU	00100000B
+   179                      <        D_Bias_1_2:					.EQU	00010000B
+   180                      <        D_ScanEnable:					.EQU	00000001B
+   181                      <       P_LCD_VLCD_Ctrl:			.EQU	$19
+   182                      <        D_Halt_Normal:					.EQU	00110000B
+   183                      <        D_Halt_Green:					.EQU	00100000B
+   184                      <        D_VLCD_28:						.EQU	00000000B
+   185                      <        D_VLCD_30:						.EQU	00000001B
+   186                      <        D_VLCD_33:						.EQU	00000010B
+   187                      <        D_VLCD_VDD:					.EQU	00000011B
+   188                      <       ;===============   Watch Dog Register  ===============
+   189                      <       P_WDT_Flag_Clear:			.EQU	$0F
+   190                      <       
+   191                      <       ;==================  Reset Register  ==================
+   192                      <       P_Reset_Status:			.EQU	$0E
+   193                      <        D_FlagC:						.EQU	00000001B;Reset in normal mode
+   194                      <        D_FlagON:						.EQU	00000010B;Reset in standby mode
+   195                      <        
+   196                      <       ;==================  AUDIO Register  =================
+   197                      <       ; Buzzer Output Control (PD[1:0] is buzzer output)
+   198                      <       P_AUDIO_BZ_Ctrl:			.EQU	$16
+   199                      <        D_C32KOUT:						.EQU	10000000B
+   200                      <        D_Buzzer1:						.EQU	00000010B
+   201                      <        D_Buzzer0:						.EQU	00000001B
+   202                      <       
+   203                      <       ;==================  LVD Register  ===================
+   204                      <       P_LVD_Ctrl:					.EQU	$1B
+   205                      <        D_LVD_State:					.EQU	00000001B
+   206                      <        D_LVD_22:						.EQU	00000000B
+   207                      <        D_LVD_24:						.EQU	01000000B
+   208                      <        D_LVD_27:						.EQU	10000001B
+   209                      <        D_LVD_33:						.EQU	11000001B
+   210                      <       P_INT_LVD_Clear:			.EQU	$46
+   211                      <       
+   212                      <       ;================  RFC Control Register  ==============
+   213                      <       P_RFC_Ctrl:					.EQU	$17
+   214                      <        D_EXT1EDG:						.EQU	10000000B
+   215                      <        D_EXT2EDG:						.EQU	01000000B
+   216                      <        D_RFCEN:						.EQU	00000001B
+   217                      <       ;=================  PWM Register  =====================
+   218                      <       P_PWMIO_Ctrl:				.EQU	$3030
+   219                      <       P_PWMIO_IO0_DUTY:			.EQU	$3032
+   220                      <       P_PWMIO_IO1_DUTY:			.EQU	$3033
+   221                      <       P_PWMIO_IO2_DUTY:			.EQU	$3034
+   222                      <       P_PWMIO_IO3_DUTY:			.EQU	$3035
+   223                      <       
+   224                      <       ;**********************************************************************
+   225                      <       ;ROM Checksum
+   226                      <       ;**********************************************************************
+   227                      <       ;.IF (GPL813P01Ax+GPL813P01Bx+GPL813P01Cx)
+   228                      <       ;	D_BankNum:						.EQU	1	
+   229                      <       ;.ENDIF
+   230                      <       
+   231                      <       	D_Bank0UserRomStartAddr:		.EQU	0xE000		;0x4800 ~ 0x7FDF:User ROM Code
+   232                      <       	D_Bank0UserRomEndAddr:			.EQU	0xFFDF
+   233                      <       	D_NMIandResetVectorStartAddr:	.EQU	0xFFFC		;0xFFF8 ~ 0xFFF9:User ROM Code, 0xFFFA ~ 0xFFFF:NMI & Reset & IRQ vector
+   234                      <       	D_NMIandResetVectorEndAddr:		.EQU	0xFFFF
+   235                      <       
+   236                      <       ; ========================================================================================
+   237                      <       ; Macro Name	: M_UserRomChecksum
+   238                      <       ; Parameters	: None
+   239                      <       ; Return Value	: R_ChecksumResult: bit[7:0]
+   240                      <       ;				: R_ChecksumResult + 1: bit[15:8]
+   241                      <       ;				: R_ChecksumResult + 2: bit[23:16]
+   242                      <       ;				: R_ChecksumResult + 3: bit[31:24]
+   243                      <       ; Description	: Calculate user ROM area code checksum
+   244                      <       ; Destroy		: A, Y
+   245                      <       ; Example		: %M_UserRomChecksum	R_ChecksumAddrPtr, R_ChecksumResult
+   246                      <       ; ========================================================================================	
+   247                      <       %M_UserRomChecksum:	.MACRO	R_ChecksumAddrPtr, R_ChecksumResult
+   248                      <       	
+   249                      <       	LDA		#0
+   250                      <       	STA		R_ChecksumResult						;Result Byte0
+   251                      <       	STA		R_ChecksumResult + 1				;Result Byte1
+   252                      <       	STA		R_ChecksumResult + 2				;Result Byte2
+   253                      <       	STA		R_ChecksumResult + 3				;Result Byte3
+   254                      <       ;=================== Bank 0 ==================================================	
+   255                      <       	LDA		#.HIGH.D_Bank0UserRomStartAddr
+   256                      <       	STA		R_ChecksumAddrPtr + 1				;Start High Byte
+   257                      <       	LDA		#.LOW.D_Bank0UserRomStartAddr
+   258                      <       	STA		R_ChecksumAddrPtr						;Start Low Byte
+   259                      <       		
+   260                      <       	LDY		#0	
+   261                      <       
+   262                      <       L_ChecksumLoop1?
+   263                      <       	STA		P_WDT_Flag_Clear	
+   264                      <       	CLC
+   265                      <       	LDA		(R_ChecksumAddrPtr),Y
+   266                      <       	ADC		R_ChecksumResult						;Result Low Byte
+   267                      <       	STA		R_ChecksumResult						;Result Low Byte
+   268                      <       	BCC		L_CheckAddress1?
+   269                      <       	INC		R_ChecksumResult + 1				;Result Byte1
+   270                      <       	BNE		L_CheckAddress1?
+   271                      <       	INC		R_ChecksumResult + 2				;Result Byte3
+   272                      <       	BNE		L_CheckAddress1?
+   273                      <       	INC		R_ChecksumResult + 3				;Result Byte4
+   274                      <       		
+   275                      <       L_CheckAddress1?:
+   276                      <       	LDA		R_ChecksumAddrPtr + 1				;Address Pointer HB
+   277                      <       	CMP		#.HIGH.D_Bank0UserRomEndAddr		;End High Byte
+   278                      <       	BNE		L_IncreaseAdd1?
+   279                      <       	
+   280                      <       	LDA		R_ChecksumAddrPtr						;Address Pointer LB
+   281                      <       	CMP		#.LOW.D_Bank0UserRomEndAddr			;End Low Byte
+   282                      <       	BEQ		L_ExitRomSum1?
+   283                      <       	
+   284                      <       L_IncreaseAdd1?:
+   285                      <       	INC		R_ChecksumAddrPtr						;Address Pointer LB
+   286                      <       	BNE		L_ChecksumLoop1?
+   287                      <       	INC		R_ChecksumAddrPtr + 1				;Address Pointer HB
+   288                      <       	JMP		L_ChecksumLoop1?	
+   289                      <       		
+   290                      <       L_ExitRomSum1?:	
+   291                      <       
+   292                      <       ;===================NMI & Reset Vector==================================================		
+   293                      <       	LDA		#.HIGH.D_NMIandResetVectorStartAddr
+   294                      <       	STA		R_ChecksumAddrPtr + 1				; Start High Byte
+   295                      <       	LDA		#.LOW.D_NMIandResetVectorStartAddr
+   296                      <       	STA		R_ChecksumAddrPtr						;Start Low Byte
+   297                      <       		
+   298                      <       L_ChecksumLoop2?
+   299                      <       	STA		P_WDT_Flag_Clear		
+   300                      <       	CLC
+   301                      <       	LDA		(R_ChecksumAddrPtr),Y
+   302                      <       	ADC		R_ChecksumResult						;Result Low Byte
+   303                      <       	STA		R_ChecksumResult						;Result Low Byte
+   304                      <       	BCC		L_CheckAddress2?
+   305                      <       	INC		R_ChecksumResult + 1				;Result Byte2
+   306                      <       	BNE		L_CheckAddress2?
+   307                      <       	INC		R_ChecksumResult + 2				;Result Byte3
+   308                      <       	BNE		L_CheckAddress2?
+   309                      <       	INC		R_ChecksumResult + 3				;Result Byte4
+   310                      <       		
+   311                      <       L_CheckAddress2?:
+   312                      <       	LDA		R_ChecksumAddrPtr + 1				;Address Pointer HB
+   313                      <       	CMP		#.HIGH.D_NMIandResetVectorEndAddr	;End High Byte
+   314                      <       	BNE		L_IncreaseAdd2?
+   315                      <       	
+   316                      <       	LDA		R_ChecksumAddrPtr						;Address Pointer LB
+   317                      <       	CMP		#.LOW.D_NMIandResetVectorEndAddr	;End Low Byte
+   318                      <       	BEQ		L_ExitRomSum2?
+   319                      <       	
+   320                      <       L_IncreaseAdd2?:
+   321                      <       	INC		R_ChecksumAddrPtr						;Address Pointer LB
+   322                      <       	BNE		L_ChecksumLoop2?
+   323                      <       	INC		R_ChecksumAddrPtr + 1				;Address Pointer HB
+   324                      <       	JMP		L_ChecksumLoop2?	
+   325                      <       		
+   326                      <       L_ExitRomSum2?:	
+   327                      <       ;;=====================Bank area================================================		
+   328                      <       	
+   329                      <       	.ENDM
+   330                      <       ;================================================================================
+   331                      <       
+   332                      <       			.ENDIF
+   333                      <       .ENDIF
+   334                      <       	.ENDIF
+   335                      <       	
+   336                              .INCLUDE	SYS\Project.inc
+   337                      <       
+   338                      <       ;===================================================
+   339                      <       ;			RAM Define
+   340                      <       ;====================================================
+   341                      <       .EXTERN		R_2Hz 
+   342                      <       .EXTERN		R_128Hz
+   343                      <       .EXTERN		R_INTFlag
+   344                      <       .EXTERN		F_2HzWakeUp
+   345                      <       .EXTERN		Wait1_2Sec
+   346                      <       .EXTERN		power_1
+   347                      <       ;.EXTERN		IOD_Attmap	
+   348                      <       ;.EXTERN		IOD_Dirmap	
+   349                      <       ;.EXTERN		IOD_Datmap	
+   350                      <       ;===================================================
+   351                      <       ;			Module Define
+   352                      <       ;====================================================
+   353                      <       .extern	        V_RESET	
+   354                      <       .extern			L_PowerOn
+   355                      <       ;====================================================
+   356                      <       
+   357                              .INCLUDE	SYS\Macro.inc
+   358                      <       
+   359                      <       ;==========================================
+   360                      <       ; Constant define area
+   361                      <       C_SramAddrStart		    .EQU		0080H	;SRAM start address
+   362                      <       C_SramAddrEnd   		.EQU		00FFH	;SRAM end address
+   363                      <       C_DPRAMAddrStart		.EQU		3E00H	;DPRAM start address
+   364                      <       C_DPRAMAddrEnd   		.EQU		3FFFH	;DPRAM end address
+   365                      <       
+   366                      <       D_Bit0					equ		01H
+   367                      <       D_Bit1					equ		02H
+   368                      <       D_Bit2					equ		04H
+   369                      <       D_Bit3					equ		08H
+   370                      <       D_Bit4					equ		10H
+   371                      <       D_Bit5					equ		20H
+   372                      <       D_Bit6					equ		40H
+   373                      <       D_Bit7					equ		80H
+   374                      <       
+   375                      <       C_High		equ	0x01
+   376                      <       C_Input		equ	0x00
+   377                      <       
+   378                      <       ;PCDir for 1  is output, for 0 is input
+   379                      <       C_PC0Dir	equ	D_Bit0
+   380                      <       C_PC1Dir	equ	D_Bit1
+   381                      <       C_PC2Dir	equ	D_Bit2
+   382                      <       C_PC3Dir	equ	D_Bit3
+   383                      <       C_PC6Dir	equ	D_Bit6
+   384                      <       C_PC7Dir	equ	D_Bit7
+   385                      <       
+   386                      <       D_BLight	equ	D_Bit2
+   387                      <       D_Pulse		equ	D_Bit3
+   388                      <       D_LVD		equ	D_Bit5
+   389                      <       
+   390                      <       
+   391                      <       C_MusicOne	equ	21
+   392                      <       C_MusicAll	equ	22
+   393                      <       C_MusicStop	equ	23
+   394                      <       C_MinVol	equ	31
+   395                      <       C_MaxVol	equ	45
+   396                      <       
+   397                      <       ;;============================================================================
+   398                      <       ;Macro Name: %M_ClearWatchDog
+   399                      <       ;Purpose: Clear Watchdog
+   400                      <       ;Destroy: A
+   401                      <       ;;============================================================================
+   402                      <       %M_ClearWatchDog:		.MACRO 
+   403                      <       	LDA		#D_WDT_Clear
+   404                      <       	STA		P_WDT_Flag_Clear			; Clear WDT
+   405                      <       	.ENDM
+   406                      <       ;;============================================================================
+   407                      <       ;Macro Name: %M_DisAllInt
+   408                      <       ;Purpose: Disable all interrupt 
+   409                      <       ;Destroy: A
+   410                      <       ;;============================================================================
+   411                      <       %F_InitINT:		.MACRO
+   412                      <       		LDA		#00000111b		;2HZ （bit0~2) for 111 is 4K 			;timeBaseA 2hz timeBaseB 16hz
+   413                      <       		STA		P_TIMER_TimeBase_Sel		
+   414                      <       		LDA		#D_2KHzInt+D_128HzInt+D_TMBAInt+D_TMBBInt;+D_Timer0Int
+   415                      <       		STA		P_INT_Ctrl
+   416                      <       		LDA		#00
+   417                      <       		STA		P_INT_Ctrl2		;disable TMR1 INT
+   418                      <       ;		LDA		#D_TimerEn+D_TimerFallEdge+D_TimerSrcA_VDD+D_TimerSrcB_LF
+   419                      <       ;		STA		P_TIMER_Timer0_Ctrl
+   420                      <       ;		LDA		#0xC8
+   421                      <       ;		LDA		#0xFC
+   422                      <       ;		STA		P_TIMER_TM0Data_LB		;8k
+   423                      <       ;		LDA		#0xFF
+   424                      <       ;		STA		P_TIMER_TM0Data_HB
+   425                      <       	.ENDM
+   426                      <       ;;============================================================================
+   427                      <       ;Macro Name: %DisableLCD
+   428                      <       ;Purpose: Disable LCD
+   429                      <       ;Destroy: A
+   430                      <       ;;============================================================================
+   431                      <       %DisableLCD:		.MACRO
+   432                      <       	
+   433                      <       		LDA		#(D_Duty_1_5+D_Bias_1_4)	;+D_ScanEnable)
+   434                      <       		STA		P_LCD_Ctrl		;1/11duty,1/4bias,normal scan
+   435                      <       		
+   436                      <       		LDA     #D_VLCD_33         ;VLCD = 4.5V (max value)
+   437                      <       		STA     P_LCD_VLCD_Ctrl
+   438                      <       	.ENDM
+   439                      <       ;-----------------------------------------------------------------------------
+   440                      <       ; Macro Name:	%M_InitLCD
+   441                      <       ; Description:	Initialize LCD configuration after power on
+   442                      <       ;-----------------------------------------------------------------------------	
+   443                      <       ;%M_InitLCD:		.MACRO
+   444                      <       ;    LDA		#D_LCDMode_Normal+D_LCDSetting_3Bias_4Duty+D_LCDGreenMode_En
+   445                      <       ;;	LDA		#(D_LCDMode_Normal+D_LCDSetting_3Bias_4Duty)
+   446                      <       ;	STA		P_LCD_Ctrl		;1/4duty,1/3bias,normal scan
+   447                      <       ;
+   448                      <       ;	.ENDM
+   449                      <       ;-----------------------------------------------------------------------------
+   450                      <       ; Macro Name:	%FillLcdDpram
+   451                      <       ; Description:	Fill LCD DPRAM $50 ~$5F
+   452                      <       ;-----------------------------------------------------------------------------
+   453                      <       ;%FillLcdDpram	.MACRO	mData
+   454                      <       ;		
+   455                      <       ;		%M_ClearWatchDog
+   456                      <       ;		LDX		#00H
+   457                      <       ;		LDA     mData
+   458                      <       ;?L_ClrDpramLoop:
+   459                      <       ;		STA		$50,X
+   460                      <       ;		INX
+   461                      <       ;		CPX		#10H
+   462                      <       ;		BNE		?L_ClrDpramLoop	
+   463                      <       ;
+   464                      <       ;	.ENDM
+   465                      <       
+   466                      <       ;;==========================================================================
+   467                      <       ;;Macro Name: %M_SetPC7_InputPL                 Attrib     Dir    Data
+   468                      <       ;;Purpose: Set PortC7 iutput pull low            0          0      1
+   469                      <       ;;Destroy: A
+   470                      <       ;;==========================================================================
+   471                      <       ;%M_SetPC7_InputPL:	.MACRO
+   472                      <       ;	    LDA		P_IO_PortC_Attrib
+   473                      <       ;		AND     #7FH
+   474                      <       ;		STA		P_IO_PortC_Attrib
+   475                      <       ;		
+   476                      <       ;		LDA		P_IO_PortC_Dir
+   477                      <       ;		AND     #7FH
+   478                      <       ;		STA		P_IO_PortC_Dir
+   479                      <       ;		
+   480                      <       ;		LDA		P_IO_PortC_Buffer
+   481                      <       ;		ORA		#10000000B
+   482                      <       ;		STA		P_IO_PortC_Data
+   483                      <       ;
+   484                      <       ;			.ENDM
+   485                      <       ;;==========================================================================
+   486                      <       ;;Macro Name: %M_SetPC7_InputPH               Attrib     Dir    Data
+   487                      <       ;;Purpose: Set PortC7 iutput pull high         1          0      1
+   488                      <       ;;Destroy: A
+   489                      <       ;;==========================================================================
+   490                      <       ;%M_SetPC7_InputPH:	.MACRO
+   491                      <       ;	    LDA		P_IO_PortC_Attrib
+   492                      <       ;		ORA     #80H
+   493                      <       ;		STA		P_IO_PortC_Attrib
+   494                      <       ;		
+   495                      <       ;		LDA		P_IO_PortC_Dir
+   496                      <       ;		AND     #7FH
+   497                      <       ;		STA		P_IO_PortC_Dir
+   498                      <       ;		
+   499                      <       ;		LDA		P_IO_PortC_Buffer
+   500                      <       ;		ORA		#10000000B
+   501                      <       ;		STA		P_IO_PortC_Data
+   502                      <       ;
+   503                      <       ;			.ENDM
+   504                      <       ;;==========================================================================
+   505                      <       ;;Macro Name: %M_SetPC7_Output               Attrib     Dir    Data
+   506                      <       ;;Purpose: Set PortC7 driving  low            0          1      0
+   507                      <       ;;Destroy: A
+   508                      <       ;;==========================================================================
+   509                      <       ;%M_SetPC7_OutputL:	.MACRO
+   510                      <       ;        LDA		P_IO_PortC_Attrib
+   511                      <       ;		AND     #7FH
+   512                      <       ;		STA		P_IO_PortC_Attrib
+   513                      <       ;		
+   514                      <       ;		LDA		P_IO_PortC_Dir
+   515                      <       ;		ORA     #80H
+   516                      <       ;		STA		P_IO_PortC_Dir
+   517                      <       ;		
+   518                      <       ;		LDA		P_IO_PortC_Buffer
+   519                      <       ;		AND		#01111111b
+   520                      <       ;		STA		P_IO_PortC_Data
+   521                      <       ;			.ENDM
+   522                      <       ;;==========================================================================
+   523                      <       ;;Macro Name: %M_SetPC7_Output             Attrib     Dir    Data
+   524                      <       ;;Purpose: Set PortC7 driving  high          0         1      1
+   525                      <       ;;Destroy: A
+   526                      <       ;;==========================================================================
+   527                      <       ;%M_SetPC7_OutputH:	.MACRO
+   528                      <       ;        LDA		P_IO_PortC_Attrib
+   529                      <       ;		AND     #7FH
+   530                      <       ;		STA		P_IO_PortC_Attrib
+   531                      <       ;		
+   532                      <       ;		LDA		P_IO_PortC_Dir
+   533                      <       ;		ORA     #80H
+   534                      <       ;		STA		P_IO_PortC_Dir
+   535                      <       ;		
+   536                      <       ;		LDA		P_IO_PortC_Buffer
+   537                      <       ;		ORA		#10000000B
+   538                      <       ;		STA		P_IO_PortC_Data
+   539                      <       ;		
+   540                      <       ;			.ENDM
+   541                      <       ;----------------------------------------------------------
+   542                      <       ;/***********************************************/
+   543                      <       ;         i.L=1 
+   544                      <       %bits:   .MACRO   i,L             ;BYTE i;  
+   545                      <                 lda     i               ;ex.  
+   546                      <                 ora     #L              ;  %bits 10H,_BIT0
+   547                      <       		                   ;  10H.0=1
+   548                      <                 sta     i               ;
+   549                      <                .ENDM    
+   550                      <       
+   551                      <       ;/***********************************************/
+   552                      <       ;         i.L=0
+   553                      <       %bitr:   .MACRO   i,L             ;BYTE i;  
+   554                      <                 lda     i               ;ex.  
+   555                      <                 and     #.NOT.L         ;  %bitr 10H,_BIT0;  10H.0=0
+   556                      <                 sta     i
+   557                      <                .ENDM    
+   558                      <       
+   559                      <       ;/***********************************************/
+   560                      <       ;         if(i.L==1) goto N
+   561                      <       %btst:   .MACRO   i,L,N           ;BYTE i;  
+   562                      <                 lda     i               ;ex.   
+   563                      <                 and     #L              ;  %btst 10H,_BIT0,N
+   564                      <                 bne     N               ;  if(10H.0=1) goto N 
+   565                      <                .ENDM    
+   566                      <                                         
+   567                      <       ;/***********************************************/
+   568                      <       ;         if(i.L==0) goto N
+   569                      <       %btsf:   .MACRO   i,L,N           ;BYTE i;    
+   570                      <                 lda     i               ;ex.   
+   571                      <                 and     #L              ;  %btsf 10H,_BIT0,N
+   572                      <                 beq     N               ;  if(10H.0=0) goto N 
+   573                      <                .ENDM    
+   574                      <       ;/***********************************************/
+   575                      <       ;         if(i==#0) goto N
+   576                      <       %jz:     .MACRO   i,N             ;BYTE i;
+   577                      <                 lda     i               ;ex.
+   578                      <                 beq     N               ;  %jz 10H,N
+   579                      <                .ENDM                    ;  if(10H==#0) goto N
+   580                      <       
+   581                      <       ;/***********************************************/
+   582                      <       ;         if(i!=#0) goto N
+   583                      <       %jnz:    .MACRO   i,N             ;BYTE i;
+   584                      <                 lda     i               ;ex.
+   585                      <                 bne     N               ;  %jnz 10H,N
+   586                      <                .ENDM                    ;  if($10!=#0) goto N
+   587                      <                   
+   588                      <       ;-----------------------------------------------------------------------------
+   589                      <       ; Macro Name:	%InitSystem
+   590                      <       ; Description:	Initial system port
+   591                      <       ;-----------------------------------------------------------------------------
+   592                      <       %InitSystem		.MACRO
+   593                      <       		LDA		#0
+   594                      <       		STA		P_Reset_Status	;Clear AC key reset flag
+   595                      <       		%Enable32KLF
+   596                      <       	.ENDM
+   597                      <       ;-----------------------------------------------------------------------------
+   598                      <       ; Macro Name:	%Disable32KLF
+   599                      <       ; Description:	Disable Low Frequency
+   600                      <       ;-----------------------------------------------------------------------------
+   601                      <       %Disable32KLF	.MACRO
+   602                      <       
+   603                      <       		LDA		#D_LFDisable
+   604                      <       		STA		P_CLK_32768_En
+   605                      <       
+   606                      <       		.ENDM
+   607                      <       ;-----------------------------------------------------------------------------
+   608                      <       ; Macro Name:	%Enable32KLF
+   609                      <       ; Description:	Enable Low Frequency
+   610                      <       ;-----------------------------------------------------------------------------
+   611                      <       %Enable32KLF		.MACRO
+   612                      <       
+   613                      <       		LDA		#D_LFEnable
+   614                      <       		STA		P_CLK_32768_En
+   615                      <       
+   616                      <       	.ENDM		
+   617                      <       ;-----------------------------------------------------------------------------
+   618                      <       ; Macro Name:	%InitLCD
+   619                      <       ; Description:	Initialize LCD configuration after power on
+   620                      <       ;-----------------------------------------------------------------------------	
+   621                      <       %InitLCD:		.MACRO
+   622                      <       
+   623                      <       		LDA		#(D_Duty_1_5+D_Bias_1_3+D_ScanEnable)
+   624                      <       		STA		P_LCD_Ctrl		;1/11duty,1/4bias,normal scan
+   625                      <       		
+   626                      <       		LDA     #D_VLCD_28            ;VLCD = 4.5V (max value)
+   627                      <       ;		LDA		#D_VLCD_VDD
+   628                      <       		STA     P_LCD_VLCD_Ctrl
+   629                      <       	
+   630                      <       	.ENDM
+   631                      <       ;-----------------------------------------------------------------------------
+   632                      <       ; Macro Name:	%FillSram
+   633                      <       ; Description:	Fill data to SRAM whole space
+   634                      <       ; Input:		mData
+   635                      <       ;-----------------------------------------------------------------------------	
+   636                      <       %FillSram		.MACRO	mData
+   637                      <       		
+   638                      <       		LDA		#.LOW.(C_SramAddrStart+2)
+   639                      <       		STA		C_SramAddrStart
+   640                      <       		LDA		#.HIGH.(C_SramAddrStart+2)
+   641                      <       		STA		C_SramAddrStart+1
+   642                      <       		
+   643                      <       		LDX     #0
+   644                      <       ?L_FillLoop#:
+   645                      <               LDA     mData
+   646                      <       		STA     (C_SramAddrStart,X)
+   647                      <       		
+   648                      <       		LDA     C_SramAddrStart+1
+   649                      <       		CMP     #.HIGH.C_SramAddrEnd
+   650                      <       		BCC     ?L_IncSramAddr#
+   651                      <       		LDA     C_SramAddrStart
+   652                      <       		CMP     #.LOW.C_SramAddrEnd
+   653                      <       		BCS     ?L_End#
+   654                      <       		
+   655                      <       ?L_IncSramAddr#:    ;Increase sram address
+   656                      <               INC     C_SramAddrStart
+   657                      <       		BNE     ?L_FillLoop#
+   658                      <       		INC     C_SramAddrStart+1
+   659                      <       		%WatchDogClear
+   660                      <               JMP     ?L_FillLoop#
+   661                      <       ?L_End#:
+   662                      <               
+   663                      <               LDA     mData
+   664                      <               STA     C_SramAddrStart
+   665                      <               STA     C_SramAddrStart+1
+   666                      <               
+   667                      <               LDX		#00H
+   668                      <       ?L_HSRAMloop:
+   669                      <       		LDA		mData
+   670                      <       		STA		$180,X
+   671                      <       		INX	
+   672                      <       		CPX		#80H
+   673                      <       		BNE		?L_HSRAMloop
+   674                      <       		
+   675                      <       	.ENDM
+   676                      <       	
+   677                      <       ;-----------------------------------------------------------------------------
+   678                      <       ; Macro Name:	%ClrSRAM
+   679                      <       ; Description:	Clear SRAM $60 ~ $95F
+   680                      <       ;-----------------------------------------------------------------------------	
+   681                      <       %ClrSRAM:	.MACRO
+   682                      <       
+   683                      <       		%FillSram	#0
+   684                      <       
+   685                      <       	.ENDM
+   686                      <       ;-----------------------------------------------------------------------------
+   687                      <       ;-----------------------------------------------------------------------------
+   688                      <       ; Macro Name:	%FillLcdDpram
+   689                      <       ; Description:	Fill LCD DPRAM $3E00 ~$3FFF
+   690                      <       ;-----------------------------------------------------------------------------
+   691                      <       %FillLcdDpram	.MACRO	mData
+   692                      <       		
+   693                      <       		%WatchDogClear
+   694                      <       		LDX		#00H
+   695                      <       		LDY		#00H
+   696                      <       ?L_ClrDpramLoop:
+   697                      <       		LDA     mData
+   698                      <       		STA		$3E00,X
+   699                      <       		INY
+   700                      <       		CPY		#04H
+   701                      <       		BNE		?L_ClrDpramLoopI
+   702                      <       		LDY		#00H
+   703                      <       		TXA
+   704                      <       		CLC
+   705                      <       		ADC		#0CH
+   706                      <       		TAX
+   707                      <       ?L_ClrDpramLoopI:		
+   708                      <       		INX
+   709                      <       		CPX		#80H
+   710                      <       		BNE		?L_ClrDpramLoop
+   711                      <       	.ENDM
+   712                      <       ;-----------------------------------------------------------------------------
+   713                      <       %F_Initinal_IO	.MACRO
+   714                      <       		LDA		#00000000b		
+   715                      <       		STA		P_IO_PortA_Dir
+   716                      <       		LDA		#00000000b		
+   717                      <       		STA		P_IO_PortA_Data	
+   718                      <       		
+   719                      <       		LDA		#0
+   720                      <       		STA		P_IO_PortB_Attrib
+   721                      <       		LDA		#00000011b		
+   722                      <       		STA		P_IO_PortB_Dir
+   723                      <       		LDA		#00000000b		
+   724                      <       		STA		P_IO_PortB_Data		;PB1蜂鸣器，PB0背光
+   725                      <       
+   726                      <       		LDA		#00H
+   727                      <       		STA		P_IO_PortC_Dir
+   728                      <       		LDA		#00000000b
+   729                      <       		STA		P_IO_PortC_Data	
+   730                      <       		
+   731                      <       		LDA		#00h
+   732                      <       		STA		P_IO_PortD_Attrib		
+   733                      <       		LDA		#00000001b		
+   734                      <       		STA		P_IO_PortD_Dir
+   735                      <       		STA		P_IOD_DIR_Map	
+   736                      <       		LDA		#00000010b
+   737                      <       		STA		P_IO_PortD_Data		
+   738                      <       		STA		R_PortD_Data_Buf
+   739                      <       
+   740                      <       		LDA		#00000000b			;PE0/PE1/PE2 全部作为按键输入
+   741                      <       		STA		P_IO_PortE_Dir
+   742                      <       		LDA		#00000000b			
+   743                      <       		STA		P_IO_PortE_Data		
+   744                      <       		
+   745                      <       		LDA		#00
+   746                      <       		STA		P_IO_Ctrl			;all as normal IO
+   747                      <       		.ENDM
+   748                      <       ;-----------------------------------------------------------------------------
+   749                      <       ; Clear watch dog
+   750                      <       %WatchDogClear	 .MACRO
+   751                      <       
+   752                      <       	   STA	   P_WDT_Flag_Clear
+   753                      <       
+   754                      <       	   .ENDM
+   755                      <       ;-----------------------------------------------------------------------------
+   756                      <       ; Macro Name:	%ClrPage0_60H_6FH
+   757                      <       ; Description:	Clear SRAM $60 ~ $7F
+   758                      <       ;-----------------------------------------------------------------------------	
+   759                      <       %ClrPage0_60H_6FH:	.MACRO
+   760                      <       
+   761                      <       		LDX		#0FH
+   762                      <       		LDA		#0
+   763                      <       		
+   764                      <       ?L_ClrLoop#:
+   765                      <       		STA		$60,X
+   766                      <       		DEX
+   767                      <       		BPL		?L_ClrLoop#	
+   768                      <       
+   769                      <       	.ENDM
+   770                      <       
+   771                      <       ;
+   772                      <       ;%EnableRR:		.MACRO	
+   773                      <       ;;RT=>PD4	RR=>PD3	
+   774                      <       ;		LDA		#D_Bit4+D_Bit5
+   775                      <       ;        STA		RFC_IO_Attrib
+   776                      <       ;		LDA		RB_IOD_Dir_temp
+   777                      <       ;		AND		#11000011b
+   778                      <       ;        ORA     #D_Bit5+D_Bit4+D_Bit3
+   779                      <       ;		STA		RFC_IO_Dir
+   780                      <       ;		LDA		RFC_IO_Data
+   781                      <       ;		ORA     #D_Bit2
+   782                      <       ;		STA     RFC_IO_Data
+   783                      <       ;		
+   784                      <       ;	.ENDM
+   785                      <       ;;------------------------
+   786                      <       ;%EnableRT:		.MACRO
+   787                      <       ;	
+   788                      <       ;		LDA		#D_Bit5+D_Bit3
+   789                      <       ;        STA		RFC_IO_Attrib
+   790                      <       ;		LDA		RB_IOD_Dir_temp
+   791                      <       ;		AND		#11000011b
+   792                      <       ;        ORA     #D_Bit5+D_Bit4+D_Bit3
+   793                      <       ;		STA		RFC_IO_Dir
+   794                      <       ;		LDA		RFC_IO_Data
+   795                      <       ;		ORA     #D_Bit2
+   796                      <       ;		STA     RFC_IO_Data
+   797                      <       ;		
+   798                      <       ;	.ENDM
+   799                      <       ;;===================================================
+   800                      <       ;;%EnableRR:		.MACRO	
+   801                      <       ;;;RT=>PD4	RR=>PD3	
+   802                      <       ;;;		LDA		RB_IOD_Dir_temp
+   803                      <       ;;;		LDA		#D_Bit3+D_Bit4
+   804                      <       ;;		LDA		#D_Bit4
+   805                      <       ;;        STA		RFC_IO_Attrib
+   806                      <       ;;		LDA		RB_IOD_Dir_temp
+   807                      <       ;;		AND		#11100001b
+   808                      <       ;;;        ORA     #D_Bit5+D_Bit4+D_Bit3
+   809                      <       ;;		ORA		#D_Bit4+D_Bit3
+   810                      <       ;;		STA		RFC_IO_Dir
+   811                      <       ;;		STA		RB_IOD_Dir_temp
+   812                      <       ;;		LDA		RFC_IO_Data
+   813                      <       ;;		AND		#11100011b
+   814                      <       ;;		ORA     #D_Bit2
+   815                      <       ;;		STA     RFC_IO_Data
+   816                      <       ;;		
+   817                      <       ;;	.ENDM
+   818                      <       ;;;------------------------
+   819                      <       ;;%EnableRT:		.MACRO
+   820                      <       ;;	
+   821                      <       ;;		LDA		#D_Bit3
+   822                      <       ;;;		LDA		#D_Bit4+D_Bit5
+   823                      <       ;;        STA		RFC_IO_Attrib
+   824                      <       ;;		LDA		RB_IOD_Dir_temp
+   825                      <       ;;		AND		#11100001b
+   826                      <       ;;        ORA     #D_Bit4+D_Bit3;+D_Bit5
+   827                      <       ;;		STA		RFC_IO_Dir
+   828                      <       ;;		STA		RB_IOD_Dir_temp
+   829                      <       ;;		LDA		RFC_IO_Data
+   830                      <       ;;		AND		#11100011b
+   831                      <       ;;		ORA     #D_Bit2
+   832                      <       ;;		STA     RFC_IO_Data
+   833                      <       ;;		
+   834                      <       ;;	.ENDM
+   835                      <       ;;------------------------
+   836                      <       ;%EnableRH:		.MACRO
+   837                      <       ;		LDA		#D_Bit3;+D_Bit5
+   838                      <       ;        STA		RFC_IO_Attrib
+   839                      <       ;        LDA		RB_IOD_Dir_temp
+   840                      <       ;        AND		#11100001b
+   841                      <       ;        ORA     #D_Bit4+D_Bit3;+D_Bit5
+   842                      <       ;		STA		RFC_IO_Dir
+   843                      <       ;		STA		RB_IOD_Dir_temp
+   844                      <       ;		LDA		RFC_IO_Data
+   845                      <       ;		AND		#11100011b
+   846                      <       ;		ORA     #D_Bit2
+   847                      <       ;		STA     RFC_IO_Data
+   848                      <       ;	.ENDM	
+   849                      <       ;==============================================
+   850                      <       %SetTimerData   .MACRO  c_data
+   851                      <       
+   852                      <               LDA     #.LOW.c_data
+   853                      <               STA     P_TIMER_TM0Data_LB
+   854                      <               LDA     #.HIGH.c_data
+   855                      <               STA     P_TIMER_TM0Data_HB
+   856                      <               STA     P_TIMER_TM0Load_Ctrl
+   857                      <               
+   858                      <       	.ENDM
+   859                      <       ;-----------------------------------------------------------------------------
+   860                      <       ; Macro Name:	%PushAll                                                        
+   861                      <       ; Description:	Push                                                          
+   862                      <       ;-----------------------------------------------------------------------------
+   863                      <       %PushAll:		.MACRO                                                            
+   864                      <       		PHP                                                                         
+   865                      <       		PHA                                                                         
+   866                      <       		TXA                                                                         
+   867                      <       		PHA                                                                         
+   868                      <       		TYA                                                                         
+   869                      <       		PHA                                                                         
+   870                      <                                                                              
+   871                      <       			.ENDM                                                                   
+   872                      <       ;-----------------------------------------------------------------------------
+   873                      <       ; Macro Name:	%PopAll                                                         
+   874                      <       ; Description:	Pop                                                           
+   875                      <       ;-----------------------------------------------------------------------------
+   876                      <       %PopAll:		.MACRO                                                            
+   877                      <                                                           
+   878                      <       		PLA                                                                         
+   879                      <       		TAY                                                                         
+   880                      <       		PLA                                                                         
+   881                      <       		TAX                                                                         
+   882                      <       		PLA                                                                         
+   883                      <       		PLP                                                                         
+   884                      <       			.ENDM	                                
+   885                      <       		
+   886                      <       ;==========================================================================
+   887                      <       LCDConvert		.MACRO  com,seg
+   888                      <       ;			DB	com*8+(seg/8)+00H,1<<(seg.AND.07H)
+   889                      <       ;			DB	(com*8+07H)-(seg/8),1<<(seg.AND.07H)	;LB25B
+   890                      <       ;			DB	com*4+(seg/8)+50H,1<<(seg.AND.07H)	;L11A\B
+   891                      <       ;			DB	com*6+(seg/8)+20H,1<<(seg.AND.07H)	;L31B
+   892                      <       ;LCDConvert:		.Macro	com,seg
+   893                      <       ;			DB	com*4+(seg/8)+A0H,1<<(seg.AND.07H)	;GPL10A
+   894                      <       			DB	com*10H+(seg/8)+00H,1<<(seg.AND.07H)	;GPL813P01;
+   895                      <       			
+   896                      <       			.ENDM
+   897                      <       			
+   898                      <       %LCD7S        .MACRO   i1c,i1s,i2c,i2s,i3c,i3s,i4c,i4s,i5c,i5s,i6c,i6s,i7c,i7s
+   899                      <                      LCDConvert    i1c,i1s
+   900                      <                      LCDConvert    i2c,i2s
+   901                      <                      LCDConvert    i3c,i3s
+   902                      <                      LCDConvert    i4c,i4s
+   903                      <                      LCDConvert    i5c,i5s
+   904                      <                      LCDConvert    i6c,i6s
+   905                      <                      LCDConvert    i7c,i7s
+   906                      <                      .ENDM
+   907                      <                      
+   908                      <       %LCD8S:        .MACRO   i1c,i1s,i2c,i2s,i3c,i3s,i4c,i4s,i5c,i5s,i6c,i6s,i7c,i7s,i8c,i8s
+   909                      <                      LCDConvert    i1c,i1s
+   910                      <                      LCDConvert    i2c,i2s
+   911                      <                      LCDConvert    i3c,i3s
+   912                      <                      LCDConvert    i4c,i4s
+   913                      <                      LCDConvert    i5c,i5s
+   914                      <                      LCDConvert    i6c,i6s
+   915                      <                      LCDConvert    i7c,i7s
+   916                      <       		       LCDConvert    i8c,i8s
+   917                      <                      .ENDM  
+   918                      <                    
+   919                      <       ;**********************************************************************
+   920                      <       %Define_IOPort:	.Macro
+   921                      <       			lda	#(PortCD0Output+PortCD1Output+PortCD2Output+PortCD3Output)
+   922                      <       			sta	P_00H_Port_Ctrl
+   923                      <       			lda	#03H		;D_PortCDScan
+   924                      <       			sta	P_03H_PortCD_Data
+   925                      <       			.ENDM	
+   926                      <       
+   927                      <       ;================================================================
+   928                      <       ;Kind   :Count Loop
+   929                      <       ;================================================================
+   930                      <       ;-------------------------------------------------------------------------
+   931                      <       %DJNZ:               .MACRO       Var,Lable    ;  !=0
+   932                      <                             DEC          Var
+   933                      <                             BNE          Lable
+   934                      <                            .ENDM
+   935                              .INCLUDE	KEY\KEY.inc
+   936                      <       
+   937                      <       ;===================================================
+   938                      <       ;			RAM Define
+   939                      <       ;====================================================
+   940                      <       .EXTERN		R_Set
+   941                      <       D_SetConver		equ	02h
+   942                      <       D_SetTimeHour	equ	04h
+   943                      <       D_SetTimeMin	equ	08h
+   944                      <       D_SetTimeMax	equ	10h
+   945                      <       
+   946                      <       ;D_SetAConver	equ	02h
+   947                      <       D_SetAlarmHour	equ	02h
+   948                      <       D_SetAlarmMin	equ	04h
+   949                      <       D_SetAlarmMax	equ	08h
+   950                      <       
+   951                      <       D_SetDateYear	equ	02h
+   952                      <       D_SetDateMonth	equ	04h
+   953                      <       D_SetDateDay	equ	08h
+   954                      <       D_SetDateMax	equ	10h
+   955                      <       
+   956                      <       D_SetHour	equ	02h
+   957                      <       D_SetMin	equ	04h
+   958                      <       D_SetMax	equ	08h
+   959                      <       
+   960                      <       
+   961                      <       .EXTERN		R_KeyFlag
+   962                      <       D_KeyTone		equ	01h
+   963                      <       D_EnableFastAdd	equ	02h		
+   964                      <       D_EnableAlarm	equ	04h
+   965                      <       D_EnableSnooze	equ	08h
+   966                      <       D_KeyRelDis		equ	10h
+   967                      <       D_ToneOn		equ	20h
+   968                      <       D_Alarming		equ	40h
+   969                      <       D_24Mode		equ	80h		;must for bit7/24mode
+   970                      <       	
+   971                      <       .EXTERN		INT_PlayPWM	
+   972                      <       .EXTERN		R_LEDFlag	
+   973                      <       D_LED_ON		equ		0x08
+   974                      <       
+   975                      <       .EXTERN		R_BLTime
+   976                      <       D_5SecBL			equ	10
+   977                      <       D_2SecBL			equ	4
+   978                      <       
+   979                      <       .EXTERN		R_KeyValue		
+   980                      <       .EXTERN		R_KeyTemp		
+   981                      <       ;.EXTERN		R_SpecFlag		
+   982                      <       	
+   983                      <       .EXTERN		R_SetBack					
+   984                      <       .EXTERN		R_OldKeyValue
+   985                      <       D_KeyFcClear		equ		0x01
+   986                      <       D_KeyAllTime		equ		0x02
+   987                      <       D_KeyLight			equ		0x04
+   988                      <       D_KeyUnused		equ		0x08
+   989                      <       .EXTERN		R_DebounceCnt	
+   990                      <       C_KeyDebounce		equ		2		;30ms 
+   991                      <       	
+   992                      <       .EXTERN		R_LEDTemp	
+   993                      <       .EXTERN		F_Check_LED
+   994                      <       
+   995                      <       	
+   996                      <       ;.EXTERN		R_SleepTime
+   997                      <       C_Sleep20Sec			equ 	40	;120/2=60sec
+   998                      <       	
+   999                      <       .EXTERN		R_LongKeyTime
+  1000                      <       C_LongKey2Sec			equ		255
+  1001                      <       C_FastAdd				equ		24		;1秒加8次
+  1002                      <       	
+  1003                      <       .EXTERN			R_KeyFlag1	
+  1004                      <       D_TimeFlag			equ		01h
+  1005                      <       D_Timering_Short	equ		02H
+  1006                      <       D_NoKeyTone			equ		04H
+  1007                      <       D_DC				equ		08H
+  1008                      <       D_EnableSnooze1		equ		10h
+  1009                      <       ;===================================================
+  1010                      <       ;			Module Define
+  1011                      <       ;====================================================
+  1012                      <       .EXTERN	        F_KeyScan	
+  1013                      <       .EXTERN			InitLED
+  1014                      <       .EXTERN			F_PlayKeyTone
+  1015                      <       .EXTERN			F_2Hz_Cnt
+  1016                      <       .EXTERN			F_initSet
+  1017                      <       
+  1018                      <       .EXTERN			F_DC_Judge	
+  1019                      <       .EXTERN		F_backlightOpen
+  1020                              .INCLUDE	RTC\RTC.inc
+  1021                      <       ;===================================================
+  1022                      <       ;            RAM Define
+  1023                      <       ;====================================================
+  1024                      <       .EXTERN			R_TimeStatus
+  1025                      <       HalfSecToggle			EQU		01000000B
+  1026                      <       
+  1027                      <       AddSecondOnly			EQU		00100000B
+  1028                      <       AddOthers				EQU		00010000B
+  1029                      <       .EXTERN			RTC
+  1030                      <       
+  1031                      <       ;===================================================
+  1032                      <       ;            Module Define
+  1033                      <       ;====================================================
+  1034                      <       .EXTERN			F_ResetRealTimeClock
+  1035                      <       .EXTERN			F_RealTimeClock
+  1036                      <       .EXTERN			F_ClearIncStatus
+  1037                      <       .EXTERN			INC_SEC
+  1038                      <       .EXTERN			INC_MIN
+  1039                      <       .EXTERN			INC_MIN1
+  1040                      <       .EXTERN			INC_MIN2
+  1041                      <       .EXTERN			INC_HR
+  1042                      <       .EXTERN			INC_HR1
+  1043                      <       .EXTERN			INC_HR2		;x for RAM, a for Max
+  1044                      <       
+  1045                      <       ;====================================================
+  1046                              .INCLUDE	LCD\LCD_Display.inc
+  1047                      <       ;			RAM Define
+  1048                      <       ;==========================================================
+  1049                      <       
+  1050                      <       ;===================================================
+  1051                      <       ;			RAM Define
+  1052                      <       ;====================================================
+  1053                      <       .EXTERN			R_TempBuf
+  1054                      <       R_LcdTableIndex			equ	R_TempBuf+1		;ds	1
+  1055                      <       R_Display_Number		equ	R_TempBuf+2		;ds	1
+  1056                      <       R_LcdSegmentPosition	equ	R_TempBuf+3		;ds	1
+  1057                      <       R_Display7Times			equ	R_TempBuf+4		;ds	1
+  1058                      <       .EXTERN			T_Icon
+  1059                      <       .EXTERN			LcdMapTab
+  1060                      <       .EXTERN			T_NumberTable
+  1061                      <       .EXTERN			T_12Temp_Table
+  1062                      <       ;===================================================
+  1063                      <       ;			Module Define
+  1064                      <       ;====================================================
+  1065                      <       .EXTERN         F_ClrLcdDpram
+  1066                      <       .EXTERN			F_AllDisplayLcd
+  1067                      <       .EXTERN         F_ClrPage0SRAM
+  1068                      <       ;.EXTERN         F_ClrSRAM
+  1069                      <       .EXTERN         F_Display
+  1070                      <       .EXTERN			F_DisplayHLValue
+  1071                      <       .EXTERN			F_ClearAllDisplay
+  1072                      <       .EXTERN			F_DisplayProductUI
+  1073                      <       ;====================================================
+  1074                      <       .EXTERN			F_Start_RFCMM_Value	
+  1075                      <       
+  1076                              .INCLUDE	RF\RF.inc
+  1077                      <       ;===================================================
+  1078                      <       ;            RAM Define
+  1079                      <       ;====================================================
+  1080                      <       .EXTERN		R_RFStatus
+  1081                      <       D_RFLongRecv		equ	01h
+  1082                      <       D_RFCycleMode		equ	02h
+  1083                      <       D_RFNeedSync		equ	04h
+  1084                      <       D_RFRecvBusy		equ	08h
+  1085                      <       
+  1086                      <       .EXTERN		R_RFChannel
+  1087                      <       D_RFCh1			equ	01h
+  1088                      <       D_RFCh2			equ	02h
+  1089                      <       D_RFCh3			equ	03h
+  1090                      <       D_RFAutoMode		equ	04h
+  1091                      <       
+  1092                      <       .EXTERN		R_RFViewChannel
+  1093                      <       .EXTERN		R_RFRequestChannel
+  1094                      <       
+  1095                      <       .EXTERN		R_RFLongRecvTm
+  1096                      <       C_RFLongRecv3Min		equ	180
+  1097                      <       
+  1098                      <       .EXTERN		R_RFAutoSwitchTm
+  1099                      <       C_RFAutoSwitch4Sec		equ	4
+  1100                      <       
+  1101                      <       .EXTERN		R_RFRecvWindowTm
+  1102                      <       C_RFRecvWindow2SecTick	equ	4		; 最新协议已改回提前 2 秒开接收，窗口总长 2 秒。
+  1103                      <       ; C_RFRecvWindow3Sec		equ	6		; 旧一版规格写过 3 秒总窗口，现已不用，保留注释。
+  1104                      <       
+  1105                      <       .EXTERN		R_RF1SyncTm
+  1106                      <       .EXTERN		R_RF2SyncTm
+  1107                      <       .EXTERN		R_RF3SyncTm
+  1108                      <       C_RFSyncIdle			equ	0FFH
+  1109                      <       C_RFCh1Sync57Sec		equ	57
+  1110                      <       C_RFCh2Sync67Sec		equ	67
+  1111                      <       ; C_RFCh3Sync69Sec		equ	69		; 旧值，与协议/规格冲突。
+  1112                      <       C_RFCh3Sync79Sec		equ	79
+  1113                      <       
+  1114                      <       ; RF发码协议位宽:
+  1115                      <       ; Bit0 = 高500us + 低2000us
+  1116                      <       ; Bit1 = 高500us + 低1000us
+  1117                      <       C_RFBitHigh500us		equ	500
+  1118                      <       C_RFBit0Low2000us		equ	2000
+  1119                      <       C_RFBit1Low1000us		equ	1000
+  1120                      <       C_RFPacketBits36		equ	36
+  1121                      <       
+  1122                      <       ; RF收码低脉宽按 50us tick 喂入:
+  1123                      <       ; 1ms = 20 tick, 2ms = 40 tick, 停止位 4~5ms = 80~100 tick
+  1124                      <       C_RFBit1LowMinTick		equ	16
+  1125                      <       C_RFBit1LowMaxTick		equ	24
+  1126                      <       C_RFBit0LowMinTick		equ	36
+  1127                      <       C_RFBit0LowMaxTick		equ	44
+  1128                      <       C_RFStopLowMinTick		equ	80
+  1129                      <       C_RFStopLowMaxTick		equ	100
+  1130                      <       
+  1131                      <       .EXTERN		R_RFBitCnt
+  1132                      <       .EXTERN		R_RFPacket0
+  1133                      <       .EXTERN		R_RFPacket1
+  1134                      <       .EXTERN		R_RFPacket2
+  1135                      <       .EXTERN		R_RFPacket3
+  1136                      <       .EXTERN		R_RFPacket4
+  1137                      <       .EXTERN		R_RFPacket5
+  1138                      <       
+  1139                      <       .EXTERN		R_RF1Flags
+  1140                      <       .EXTERN		R_RF1IdH
+  1141                      <       .EXTERN		R_RF1IdL
+  1142                      <       .EXTERN		R_RF1TempH
+  1143                      <       .EXTERN		R_RF1TempL
+  1144                      <       .EXTERN		R_RF1Hum
+  1145                      <       .EXTERN		R_RF1LostCnt
+  1146                      <       .EXTERN		R_RF1RetryStage
+  1147                      <       
+  1148                      <       .EXTERN		R_RF2Flags
+  1149                      <       .EXTERN		R_RF2IdH
+  1150                      <       .EXTERN		R_RF2IdL
+  1151                      <       .EXTERN		R_RF2TempH
+  1152                      <       .EXTERN		R_RF2TempL
+  1153                      <       .EXTERN		R_RF2Hum
+  1154                      <       .EXTERN		R_RF2LostCnt
+  1155                      <       .EXTERN		R_RF2RetryStage
+  1156                      <       
+  1157                      <       .EXTERN		R_RF3Flags
+  1158                      <       .EXTERN		R_RF3IdH
+  1159                      <       .EXTERN		R_RF3IdL
+  1160                      <       .EXTERN		R_RF3TempH
+  1161                      <       .EXTERN		R_RF3TempL
+  1162                      <       .EXTERN		R_RF3Hum
+  1163                      <       .EXTERN		R_RF3LostCnt
+  1164                      <       .EXTERN		R_RF3RetryStage
+  1165                      <       
+  1166                      <       D_RFValid		equ	01h
+  1167                      <       D_RFLowBat		equ	02h
+  1168                      <       D_RFLost			equ	04h
+  1169                      <       D_RFNeedPair		equ	08h
+  1170                      <       C_RFFail3Times		equ	3
+  1171                      <       
+  1172                      <       ; 室外趋势状态位与 Alarm 的 D_Trend* 布局保持一致，
+  1173                      <       ; 这样 LCD 层可以按同样的 Up/Down/Eq 判定去显示室外趋势图标。
+  1174                      <       .EXTERN		R_RFTrendFlags
+  1175                      <       D_RFTrendInit		equ	01h
+  1176                      <       D_RFTrendTempUp		equ	02h
+  1177                      <       D_RFTrendTempDown	equ	04h
+  1178                      <       D_RFTrendTempRefresh	equ	08h
+  1179                      <       D_RFTrendHumUp		equ	10h
+  1180                      <       D_RFTrendHumDown	equ	20h
+  1181                      <       D_RFTrendHumRefresh	equ	40h
+  1182                      <       
+  1183                      <       ;===================================================
+  1184                      <       ;            Module Define
+  1185                      <       ;====================================================
+  1186                      <       .EXTERN		F_RF_Init
+  1187                      <       .EXTERN		F_RF_SelectNextChannel
+  1188                      <       .EXTERN		F_RF_ClearCurrentChannel
+  1189                      <       .EXTERN		F_RF_StartLongReceive
+  1190                      <       .EXTERN		F_RF_StopLongReceive
+  1191                      <       .EXTERN		F_RF_ServiceHalfSec
+  1192                      <       .EXTERN		F_RF_Service1Sec
+  1193                      <       .EXTERN		F_RF_OnReceiveOK
+  1194                      <       .EXTERN		F_RF_OnReceiveFail
+  1195                      <       .EXTERN		F_RF_ResetPacketBuffer
+  1196                      <       .EXTERN		F_RF_AppendBit0
+  1197                      <       .EXTERN		F_RF_AppendBit1
+  1198                      <       .EXTERN		F_RF_FeedLowPulseTicks
+  1199                      <       .EXTERN		F_RF_Service2KHzSample
+  1200                      <       .EXTERN		F_RF_ParsePacket
+  1201                              .INCLUDE	GXHTV4\GXHTV4.inc
+  1202                      <       ;==================================================================================
+  1203                      <       ; The information contained herein is the exclusive property of
+  1204                      <       ; Generalplus Technology Co. And shall not be distributed, reproduced,
+  1205                      <       ; or disclosed in whole in part without prior written permission.
+  1206                      <       ;       (C) COPYRIGHT 2017   Generalplus TECHNOLOGY CO.
+  1207                      <       ;		ALL RIGHTS RESERVED
+  1208                      <       ; The entire notice above must be reproduced on all authorized copies.
+  1209                      <       ;==================================================================================
+  1210                      <       ;==================================================================================
+  1211                      <       ;==================================================================================
+  1212                      <       ;==========================================
+  1213                      <       ; External declare area
+  1214                      <       ;==========================================
+  1215                      <       .External	F_ReadGXHTV4Data
+  1216                      <       .External	F_CAL_HEX_BCD2
+  1217                      <       .External	F_CHANGE_CF
+  1218                      <       
+  1219                      <       .External	R_TempFlag
+  1220                      <       D_TempF			equ	0x01	;1 for 'F;  0 for 'C ，上电默认为F此Bit需置１
+  1221                      <       D_TempError		equ	0x02	;温度出错标志
+  1222                      <       D_TempFReg		equ	0x04	;TempF for -
+  1223                      <       D_WithRTRH		equ	0x80	;带湿度功能，上电需定义
+  1224                      <       
+  1225                      <       .External	TEMP_INTEGAH			;温度整数和符号位
+  1226                      <       .External	TEMP_INTEGAL			;温度小数部分
+  1227                      <       .External	HUM				;湿度整数部分
+  1228                      <       
+  1229                      <       .External	OUT_H				;HEX转BCD 时，最高位
+  1230                      <       .External	OUT_M				;HEX转BCD 时，第二位
+  1231                      <       .External	OUT_L				;HEX转BCD 时，第三位 低4bit 为温度小数部分
+  1232                      <       .External	X_M					;CF计算输出高字节
+  1233                      <       .External	X_L					;CF计算输出低字节
+  1234                      <       
+  1235                      <       
+  1236                              
+  1237                              .EXTERN		F_ReadGXHTV4Data
+  1238                              .EXTERN		TEMP_INTEGAH
+  1239                              .EXTERN		TEMP_INTEGAL
+  1240                              .EXTERN		HUM
+  1241                              
+  1242                              ;==========================================
+  1243                              ; Public declare area
+  1244                              ;==========================================
+  1245                              ;.PUBLIC			R_PortD_Data_Buf
+  1246                              .PUBLIC			R_KeyToneTm
+  1247                              .PUBLIC			R_SoundOn
+  1248                              .PUBLIC			R_BatteryFlags
+  1249                              .PUBLIC			F_CheckLowBattery
+  1250                              .PUBLIC			R_TrendFlags
+  1251                              
+  1252                              ;==========================================
+  1253                              ; Variable RAM declare area
+  1254                              ;==========================================
+  1255 00000180                     RFCRAM	.section
+  1256                              
+  1257 00000180 FF                  R_SoundOn		ds	1
+  1258 00000181 FF                  R_KeyToneTm		ds	1
+  1259 00000182 FF                  R_BatteryFlags	ds	1
+  1260 00000183 FF                  R_BatteryDetCnt	ds	1
+  1261                              ;R_PortD_Data_Buf	ds	1
+  1262 00000184 FF                  R_TempCH		ds	1
+  1263 00000185 FF                  R_TempCL		ds	1
+  1264 00000186 FF                  R_HUM			ds	1
+  1265                              
+  1266                              D_BatteryLow		equ	0x01
+  1267                              C_BatteryDetDebounce	equ	5
+  1268                              
+  1269                              ; 趋势状态位与窗口缓存。
+  1270 00000187 FF                  R_TrendFlags		ds	1
+  1271                              D_TrendInit		equ	0x01
+  1272                              D_TrendTempUp		equ	0x02
+  1273                              D_TrendTempDown	equ	0x04
+  1274                              D_TrendTempRefresh	equ	0x08
+  1275                              D_TrendHumUp		equ	0x10
+  1276                              D_TrendHumDown	equ	0x20
+  1277                              D_TrendHumRefresh	equ	0x40
+  1278                              C_TrendEq60Samples	equ	3CH
+  1279                              C_TrendTempOver1C	equ	0BH
+  1280                              C_TrendHumOver5		equ	06H
+  1281                              
+  1282 00000188 FF                  R_TrendTempEqCnt	ds	1
+  1283 00000189 FF                  R_TrendHumEqCnt	ds	1
+  1284 0000018A FF                  R_TrendTempMaxH		ds	1
+  1285 0000018B FF                  R_TrendTempMaxL		ds	1
+  1286 0000018C FF                  R_TrendTempMinH		ds	1
+  1287 0000018D FF                  R_TrendTempMinL		ds	1
+  1288 0000018E FF                  R_TrendHumMax		ds	1
+  1289 0000018F FF                  R_TrendHumMin		ds	1
+  1290                              
+  1291                              ;---------------------------------------
+  1292                              .PUBLIC		R_TempCH
+  1293                              .PUBLIC		R_TempCL
+  1294                              .PUBLIC		R_HUM
+  1295                              .PUBLIC		R_SpecFlag
+  1296                              .PUBLIC		R_TempMin_Sign
+  1297                              .PUBLIC		R_TempMax_Sign
+  1298                              .PUBLIC		R_DispTemper_F
+  1299                              .PUBLIC		R_MAXDispTemper_F
+  1300                              .PUBLIC		R_MINDispTemper_F
+  1301                              .PUBLIC		R_DispTemper
+  1302                              .PUBLIC		R_TempMax
+  1303                              .PUBLIC		R_TempMin
+  1304                              .PUBLIC		R_DispHum
+  1305                              .PUBLIC		R_HumMax
+  1306                              .PUBLIC		R_HumMin
+  1307                              .PUBLIC		R_TempFlag1
+  1308                              
+  1309 00000190 FF                  R_SpecFlag		ds	1
+  1310 00000191 FF                  R_TempMin_Sign	ds	1
+  1311 00000192 FF                  R_TempMax_Sign	ds	1
+  1312 00000193 FF                  R_HumMin_Sign	ds	1
+  1313 00000194 FF                  R_HumMax_Sign	ds	1
+  1314                              D_HumHH			equ	0x04
+  1315                              D_TempHH		equ	0x40
+  1316                              D_TempLL		equ	0x20
+  1317                              D_Neg			equ	0x10
+  1318                              D_TF			equ	0x08
+  1319                              D_HumLL			equ	0x02
+  1320                              C_HumRaw100		equ	64H
+  1321                              C_HumDisp99		equ	99H
+  1322                              
+  1323 00000195 FF FF               R_DispTemper_F		ds	2
+  1324 00000197 FF FF               R_MAXDispTemper_F	ds	2
+  1325 00000199 FF FF               R_MINDispTemper_F	ds	2
+  1326 0000019B FF FF               R_DispTemper		ds	2
+  1327 0000019D FF FF               R_TempMax		ds	2
+  1328 0000019F FF FF               R_TempMin		ds	2
+  1329 000001A1 FF                  R_DispHum		ds	1
+  1330 000001A2 FF                  R_HumMax		ds	1
+  1331 000001A3 FF                  R_HumMin		ds	1
+  1332 000001A4 FF                  R_TempFlag1		ds	1
+  1333                              D_MaxTemp		equ	0x01
+  1334                              D_MinTemp		equ	0x02
+  1335                              
+  1336 0000F084                     .CODE
+  1337                              ;-------------------------------------------------------
+  1338                              ; 函数: F_JudgeRFC
+  1339                              ; 作用: 温湿度采样统一入口，只在整分 00 秒的半秒边沿触发一次。
+  1340                              .PUBLIC		F_JudgeRFC
+  1341 0000F084                     F_JudgeRFC:
+  1342                              	%btst	R_KeyFlag,D_KeyRelDis,ExitJudge
+  1343 0000F084 AD 8A 00          1           lda     R_KeyFlag               ;ex.   
+  1344 0000F087 29 10             1           and     #D_KeyRelDis              ;  %btst 10H,_BIT0,N
+  1345 0000F089 D0 55             1           bne     ExitJudge               ;  if(10H.0=1) goto N 
+  1346                              	%btst	R_RFStatus,D_RFLongRecv,ExitJudge
+  1347 0000F08B AD A5 01          1           lda     R_RFStatus               ;ex.   
+  1348 0000F08E 29 01             1           and     #D_RFLongRecv              ;  %btst 10H,_BIT0,N
+  1349 0000F090 D0 4E             1           bne     ExitJudge               ;  if(10H.0=1) goto N 
+  1350 0000F092 AD 85 00            	LDA		RTC+2
+  1351 0000F095 C9 00               	CMP		#00H
+  1352 0000F097 D0 47               	BNE		ExitJudge
+  1353                              	%btst	R_TimeStatus,HalfSecToggle,ExitJudge
+  1354 0000F099 AD 86 00          1           lda     R_TimeStatus               ;ex.   
+  1355 0000F09C 29 40             1           and     #HalfSecToggle              ;  %btst 10H,_BIT0,N
+  1356 0000F09E D0 40             1           bne     ExitJudge               ;  if(10H.0=1) goto N 
+  1357 0000F0A0 4C A3 F0            	JMP		F_UpdateTHFromGXHTV4
+  1358                              
+  1359                              ;-------------------------------------------------------
+  1360                              ; 函数: F_UpdateTHFromGXHTV4
+  1361                              ; 作用: 从 GXHTV4 读取原始温湿度值，并转入本模块换算链。
+  1362                              .PUBLIC		F_UpdateTHFromGXHTV4
+  1363 0000F0A3                     F_UpdateTHFromGXHTV4:
+  1364 0000F0A3 20 C1 EB            	JSR		F_ReadGXHTV4Data
+  1365 0000F0A6 AD A3 00            	LDA		TEMP_INTEGAH
+  1366 0000F0A9 8D 84 01            	STA		R_TempCH
+  1367 0000F0AC AD A4 00            	LDA		TEMP_INTEGAL
+  1368 0000F0AF 8D 85 01            	STA		R_TempCL
+  1369 0000F0B2 AD A5 00            	LDA		HUM
+  1370 0000F0B5 8D 86 01            	STA		R_HUM
+  1371 0000F0B8 4C BB F0            	JMP		CalculateRFC
+  1372                              
+  1373                              ;-------------------------------------------------------
+  1374                              ; 函数: CalculateRFC
+  1375                              ; 作用: 按原始温度符号位更新负温标志，并进入温湿度处理主链。
+  1376                              .PUBLIC		CalculateRFC
+  1377 0000F0BB                     CalculateRFC:
+  1378 0000F0BB AD 84 01            	LDA		R_TempCH
+  1379 0000F0BE 29 80               	AND		#80H
+  1380 0000F0C0 F0 0B               	BEQ		TemperatureIsPositive
+  1381                              	%bits	R_SpecFlag,D_Neg
+  1382 0000F0C2 AD 90 01          1           lda     R_SpecFlag               ;ex.  
+  1383 0000F0C5 09 10             1           ora     #D_Neg              ;  %bits 10H,_BIT0
+  1384                            1 		                   ;  10H.0=1
+  1385 0000F0C7 8D 90 01          1           sta     R_SpecFlag               ;
+  1386 0000F0CA 4C D5 F0            	JMP		LoadTemperatureValue
+  1387                              
+  1388 0000F0CD                     TemperatureIsPositive:
+  1389                              	%bitr	R_SpecFlag,D_Neg
+  1390 0000F0CD AD 90 01          1           lda     R_SpecFlag               ;ex.  
+  1391 0000F0D0 29 EF             1           and     #.NOT.D_Neg         ;  %bitr 10H,_BIT0;  10H.0=0
+  1392 0000F0D2 8D 90 01          1           sta     R_SpecFlag
+  1393                              
+  1394 0000F0D5                     LoadTemperatureValue:
+  1395                              	%bits	R_TimeStatus,AddOthers
+  1396 0000F0D5 AD 86 00          1           lda     R_TimeStatus               ;ex.  
+  1397 0000F0D8 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
+  1398                            1 		                   ;  10H.0=1
+  1399 0000F0DA 8D 86 00          1           sta     R_TimeStatus               ;
+  1400 0000F0DD 4C 3B F1            	JMP		F_GetTHVlaue
+  1401                              
+  1402 0000F0E0                     ExitJudge:
+  1403 0000F0E0 60                  	RTS
+  1404                              
+  1405                              ;-------------------------------------------------------
+  1406                              ; 函数: F_CheckLowBattery
+  1407                              ; 作用: 读取 LVD 状态并做去抖，稳定后更新低电池标志。
+  1408 0000F0E1                     F_CheckLowBattery:
+  1409 0000F0E1 A5 1B               	LDA		P_LVD_Ctrl
+  1410 0000F0E3 29 01               	AND		#D_LVD_State
+  1411 0000F0E5 D0 27               	BNE		BatterySampleLow
+  1412                              
+  1413 0000F0E7                     BatterySampleHigh:
+  1414 0000F0E7 AD 82 01            	LDA		R_BatteryFlags
+  1415 0000F0EA 29 01               	AND		#D_BatteryLow
+  1416 0000F0EC F0 47               	BEQ		BatteryClearCounter
+  1417 0000F0EE EE 83 01            	INC		R_BatteryDetCnt
+  1418 0000F0F1 AD 83 01            	LDA		R_BatteryDetCnt
+  1419 0000F0F4 C9 05               	CMP		#C_BatteryDetDebounce
+  1420 0000F0F6 90 42               	BCC		BatteryExit
+  1421 0000F0F8 AD 82 01            	LDA		R_BatteryFlags
+  1422 0000F0FB 29 FE               	AND		#.not.D_BatteryLow
+  1423 0000F0FD 8D 82 01            	STA		R_BatteryFlags
+  1424                              	%bits	R_TimeStatus,AddOthers
+  1425 0000F100 AD 86 00          1           lda     R_TimeStatus               ;ex.  
+  1426 0000F103 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
+  1427                            1 		                   ;  10H.0=1
+  1428 0000F105 8D 86 00          1           sta     R_TimeStatus               ;
+  1429 0000F108 A9 00               	LDA		#00H
+  1430 0000F10A 8D 83 01            	STA		R_BatteryDetCnt
+  1431 0000F10D 60                  	RTS
+  1432                              
+  1433 0000F10E                     BatterySampleLow:
+  1434 0000F10E AD 82 01            	LDA		R_BatteryFlags
+  1435 0000F111 29 01               	AND		#D_BatteryLow
+  1436 0000F113 D0 1A               	BNE		BatteryLowKeep
+  1437 0000F115 EE 83 01            	INC		R_BatteryDetCnt
+  1438 0000F118 AD 83 01            	LDA		R_BatteryDetCnt
+  1439 0000F11B C9 05               	CMP		#C_BatteryDetDebounce
+  1440 0000F11D 90 1B               	BCC		BatteryExit
+  1441 0000F11F AD 82 01            	LDA		R_BatteryFlags
+  1442 0000F122 09 01               	ORA		#D_BatteryLow
+  1443 0000F124 8D 82 01            	STA		R_BatteryFlags
+  1444                              	%bits	R_TimeStatus,AddOthers
+  1445 0000F127 AD 86 00          1           lda     R_TimeStatus               ;ex.  
+  1446 0000F12A 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
+  1447                            1 		                   ;  10H.0=1
+  1448 0000F12C 8D 86 00          1           sta     R_TimeStatus               ;
+  1449                              
+  1450 0000F12F                     BatteryLowKeep:
+  1451 0000F12F A9 00               	LDA		#00H
+  1452 0000F131 8D 83 01            	STA		R_BatteryDetCnt
+  1453 0000F134 60                  	RTS
+  1454                              
+  1455 0000F135                     BatteryClearCounter:
+  1456 0000F135 A9 00               	LDA		#00H
+  1457 0000F137 8D 83 01            	STA		R_BatteryDetCnt
+  1458                              
+  1459 0000F13A                     BatteryExit:
+  1460 0000F13A 60                  	RTS
+  1461                              
+  1462                              ;-------------------------------------------------------
+  1463                              ; 输入：R_TempCH, R_TempCL - 温度值
+  1464                              ;       R_HUM - 湿度值
+  1465                              ; 输出：当前温湿度显示值、极值缓存和趋势状态。
+  1466                              ; 调试：先看 R_DispTemper/R_DispHum，再看极值和趋势状态是否同步更新。
+  1467                              .PUBLIC		F_GetTHVlaue
+  1468 0000F13B                     F_GetTHVlaue:
+  1469 0000F13B 20 4A F1            	JSR		ProcessTemperature
+  1470 0000F13E 20 85 F1            	JSR		ProcessHumidity
+  1471 0000F141 20 A9 F1            	JSR		F_Judge_HHLL
+  1472 0000F144 20 F1 F1            	JSR		UpdateExtremeValues
+  1473 0000F147 4C 14 F3            	JMP		F_UpdateTrendState
+  1474                              
+  1475                              ;-------------------------------------------------------
+  1476                              ; 输入：R_TempCH, R_TempCL 当前温度原始值。
+  1477                              ; 输出：生成室内摄氏显示缓冲，并继续生成华氏显示缓冲。
+  1478                              ; 调试：看 R_DispTemper+0/+1 与原始温度的 BCD 对应关系。
+  1479 0000F14A                     ProcessTemperature:
+  1480 0000F14A AD 84 01            	LDA		R_TempCH
+  1481 0000F14D 29 7F               	AND		#7FH
+  1482 0000F14F AA                  	TAX
+  1483 0000F150 AD 85 01            	LDA		R_TempCL
+  1484 0000F153 20 B2 ED            	JSR		F_CAL_HEX_BCD2
+  1485 0000F156 AD B3 00            	LDA		OUT_M
+  1486 0000F159 8D 9B 01            	STA		R_DispTemper+0
+  1487 0000F15C AD B2 00            	LDA		OUT_L
+  1488 0000F15F 8D 9C 01            	STA		R_DispTemper+1
+  1489 0000F162 4C 65 F1            	JMP		ConvertToFahrenheit
+  1490                              
+  1491                              ;-------------------------------------------------------
+  1492                              ; 输入：R_TempCH, R_TempCL 当前温度原始值。
+  1493                              ; 输出：生成室内华氏显示缓冲 R_DispTemper_F。
+  1494                              ; 调试：看 X_M/X_L 和 R_DispTemper_F 是否与换算结果一致。
+  1495 0000F165                     ConvertToFahrenheit:
+  1496 0000F165 AD 84 01            	LDA		R_TempCH
+  1497 0000F168 AA                  	TAX
+  1498 0000F169 AD 85 01            	LDA		R_TempCL
+  1499 0000F16C 20 09 EE            	JSR		F_CHANGE_CF
+  1500 0000F16F AE AE 00            	LDX		X_M
+  1501 0000F172 AD AF 00            	LDA		X_L
+  1502 0000F175 20 B2 ED            	JSR		F_CAL_HEX_BCD2
+  1503 0000F178 AD B3 00            	LDA		OUT_M
+  1504 0000F17B 8D 95 01            	STA		R_DispTemper_F+0
+  1505 0000F17E AD B2 00            	LDA		OUT_L
+  1506 0000F181 8D 96 01            	STA		R_DispTemper_F+1
+  1507 0000F184 60                  	RTS
+  1508                              
+  1509                              ;-------------------------------------------------------
+  1510                              ; 输入：R_HUM 当前原始湿度值。
+  1511                              ; 输出：把湿度夹到 1~99 后转换成 BCD 显示格式。
+  1512                              ; 调试：重点看 0、1、99、100 这几个边界值的 R_DispHum。
+  1513 0000F185                     ProcessHumidity:
+  1514 0000F185 AD 86 01            	LDA		R_HUM
+  1515 0000F188 F0 0A               	BEQ		ProcessHumidity_Clamp1
+  1516 0000F18A C9 64               	CMP		#C_HumRaw100
+  1517 0000F18C 90 0C               	BCC		ProcessHumidity_ConvertBCD
+  1518 0000F18E A9 99               	LDA		#C_HumDisp99
+  1519 0000F190 8D A1 01            	STA		R_DispHum
+  1520 0000F193 60                  	RTS
+  1521                              
+  1522 0000F194                     ProcessHumidity_Clamp1:
+  1523 0000F194 A9 01               	LDA		#01H
+  1524 0000F196 8D A1 01            	STA		R_DispHum
+  1525 0000F199 60                  	RTS
+  1526                              
+  1527 0000F19A                     ProcessHumidity_ConvertBCD:
+  1528 0000F19A A2 00               	LDX		#00H
+  1529 0000F19C AD 86 01            	LDA		R_HUM
+  1530 0000F19F 20 B2 ED            	JSR		F_CAL_HEX_BCD2
+  1531 0000F1A2 AD B2 00            	LDA		OUT_L
+  1532 0000F1A5 8D A1 01            	STA		R_DispHum
+  1533 0000F1A8 60                  	RTS
+  1534                              
+  1535                              ;-------------------------------------------------------
+  1536                              ; 函数: F_Judge_HHLL
+  1537                              ; 作用: 重算当前温湿度 HH/LL 状态位。
+  1538 0000F1A9                     F_Judge_HHLL:
+  1539                              	%bitr	R_SpecFlag,(D_TempLL+D_TempHH+D_HumLL+D_HumHH)
+  1540 0000F1A9 AD 90 01          1           lda     R_SpecFlag               ;ex.  
+  1541 0000F1AC 29 99             1           and     #.NOT.(D_TempLL+D_TempHH+D_HumLL+D_HumHH)         ;  %bitr 10H,_BIT0;  10H.0=0
+  1542 0000F1AE 8D 90 01          1           sta     R_SpecFlag
+  1543 0000F1B1 20 B7 F1            	JSR		F_Judge_TempHHLL
+  1544 0000F1B4 4C E5 F1            	JMP		F_Judge_HumHHLL
+  1545                              
+  1546                              ; 输入：当前室内温度显示缓冲与负号标志。
+  1547                              ; 输出：按规格重算温度 HH/LL 状态位。
+  1548                              ; 调试：看 D_TempHH/D_TempLL 在高低边界附近是否按预期翻转。
+  1549 0000F1B7                     F_Judge_TempHHLL:
+  1550                              	%btst	R_SpecFlag,D_Neg,JudgeTempLL
+  1551 0000F1B7 AD 90 01          1           lda     R_SpecFlag               ;ex.   
+  1552 0000F1BA 29 10             1           and     #D_Neg              ;  %btst 10H,_BIT0,N
+  1553 0000F1BC D0 17             1           bne     JudgeTempLL               ;  if(10H.0=1) goto N 
+  1554 0000F1BE AD 9B 01            	LDA		R_DispTemper+0
+  1555 0000F1C1 C9 05               	CMP		#05H
+  1556 0000F1C3 90 0F               	BCC		JudgeTempExit
+  1557 0000F1C5 D0 05               	BNE		SetTempHH
+  1558 0000F1C7 AD 9C 01            	LDA		R_DispTemper+1
+  1559 0000F1CA F0 08               	BEQ		JudgeTempExit
+  1560 0000F1CC                     SetTempHH:
+  1561                              	%bits	R_SpecFlag,D_TempHH
+  1562 0000F1CC AD 90 01          1           lda     R_SpecFlag               ;ex.  
+  1563 0000F1CF 09 40             1           ora     #D_TempHH              ;  %bits 10H,_BIT0
+  1564                            1 		                   ;  10H.0=1
+  1565 0000F1D1 8D 90 01          1           sta     R_SpecFlag               ;
+  1566 0000F1D4                     JudgeTempExit:
+  1567 0000F1D4 60                  	RTS
+  1568                              
+  1569 0000F1D5                     JudgeTempLL:
+  1570 0000F1D5 AD 9B 01            	LDA		R_DispTemper+0
+  1571 0000F1D8 C9 01               	CMP		#01H
+  1572 0000F1DA 90 F8               	BCC		JudgeTempExit
+  1573                              	%bits	R_SpecFlag,D_TempLL
+  1574 0000F1DC AD 90 01          1           lda     R_SpecFlag               ;ex.  
+  1575 0000F1DF 09 20             1           ora     #D_TempLL              ;  %bits 10H,_BIT0
+  1576                            1 		                   ;  10H.0=1
+  1577 0000F1E1 8D 90 01          1           sta     R_SpecFlag               ;
+  1578 0000F1E4 60                  	RTS
+  1579                              
+  1580                              ; 输入：当前室内湿度显示状态。
+  1581                              ; 输出：当前产品固定不产生湿度 HH/LL，直接返回。
+  1582                              ; 调试：确认室内湿度始终只走 1~99 显示，不再出现 HH/LL 状态位。
+  1583 0000F1E5                     F_Judge_HumHHLL:
+  1584                              	; 86428 规格要求室内湿度始终夹在 1~99%RH 显示，不再出现 HH/LL。
+  1585 0000F1E5 60                  	RTS
+  1586                              
+  1587                              ;-------------------------------------------------------
+  1588                              ; 函数: F_IsCurrentTempInRange
+  1589                              ; 作用: 根据 HH/LL 状态判断当前温度是否仍参与极值记录。
+  1590 0000F1E6                     F_IsCurrentTempInRange:
+  1591 0000F1E6 AD 90 01            	LDA		R_SpecFlag
+  1592 0000F1E9 29 60               	AND		#(D_TempHH+D_TempLL)
+  1593 0000F1EB F0 02               	BEQ		CurrentTempInRange
+  1594 0000F1ED 18                  	CLC
+  1595 0000F1EE 60                  	RTS
+  1596                              
+  1597 0000F1EF                     CurrentTempInRange:
+  1598 0000F1EF 38                  	SEC
+  1599 0000F1F0 60                  	RTS
+  1600                              
+  1601                              ;-------------------------------------------------------
+  1602                              ; 输入：当前温湿度显示值和 HH/LL 状态。
+  1603                              ; 输出：更新温湿度极值缓存；超规格温度不参与极值更新。
+  1604                              ; 调试：看极值缓存在 HH/LL 状态下是否停止更新。
+  1605 0000F1F1                     UpdateExtremeValues:
+  1606 0000F1F1 20 E6 F1            	JSR		F_IsCurrentTempInRange
+  1607 0000F1F4 90 03               	BCC		UpdateExtremeValues_SkipTemp
+  1608 0000F1F6 20 FC F1            	JSR		UpdateTemperatureExtremes
+  1609                              
+  1610 0000F1F9                     UpdateExtremeValues_SkipTemp:
+  1611 0000F1F9 4C EA F2            	JMP		UpdateHumidityExtremes
+  1612                              
+  1613                              ;-------------------------------------------------------
+  1614                              ; 函数: UpdateTemperatureExtremes
+  1615                              ; 作用: 更新最高/最低温度记录以及对应的华氏缓存。
+  1616 0000F1FC                     UpdateTemperatureExtremes:
+  1617 0000F1FC AD 90 01            	LDA		R_SpecFlag
+  1618 0000F1FF 29 10               	AND		#D_Neg
+  1619 0000F201 D0 4D               	BNE		CurrentTempIsNeg_1
+  1620                              
+  1621 0000F203 AD 92 01            	LDA		R_TempMax_Sign
+  1622 0000F206 29 10               	AND		#D_Neg
+  1623 0000F208 D0 1A               	BNE		UpdateTempMax
+  1624 0000F20A AD 9B 01            	LDA		R_DispTemper+0
+  1625 0000F20D CD 9D 01            	CMP		R_TempMax+0
+  1626 0000F210 F0 05               	BEQ		CompareTempMaxLow
+  1627 0000F212 B0 10               	BCS		UpdateTempMax
+  1628 0000F214 4C 53 F2            	JMP		CheckTempMin
+  1629                              
+  1630 0000F217                     CompareTempMaxLow:
+  1631 0000F217 AD 9C 01            	LDA		R_DispTemper+1
+  1632 0000F21A CD 9E 01            	CMP		R_TempMax+1
+  1633 0000F21D 90 34               	BCC		CheckTempMin
+  1634 0000F21F F0 32               	BEQ		CheckTempMin
+  1635 0000F221 4C 24 F2            	JMP		UpdateTempMax
+  1636                              
+  1637 0000F224                     UpdateTempMax:
+  1638 0000F224 AD 9B 01            	LDA		R_DispTemper+0
+  1639 0000F227 8D 9D 01            	STA		R_TempMax+0
+  1640 0000F22A AD 9C 01            	LDA		R_DispTemper+1
+  1641 0000F22D 8D 9E 01            	STA		R_TempMax+1
+  1642 0000F230 AD 90 01            	LDA		R_SpecFlag
+  1643 0000F233 8D 92 01            	STA		R_TempMax_Sign
+  1644 0000F236 AD 95 01            	LDA		R_DispTemper_F+0
+  1645 0000F239 8D 97 01            	STA		R_MAXDispTemper_F+0
+  1646 0000F23C AD 96 01            	LDA		R_DispTemper_F+1
+  1647 0000F23F 8D 98 01            	STA		R_MAXDispTemper_F+1
+  1648 0000F242 AD A1 00            	LDA		R_TempFlag
+  1649 0000F245 29 04               	AND		#D_TempFReg
+  1650 0000F247 0D 92 01            	ORA		R_TempMax_Sign
+  1651 0000F24A 8D 92 01            	STA		R_TempMax_Sign
+  1652 0000F24D 4C 53 F2            	JMP		CheckTempMin
+  1653                              
+  1654 0000F250                     CurrentTempIsNeg_1:
+  1655 0000F250 4C A6 F2            	JMP		CurrentTempIsNeg
+  1656                              
+  1657 0000F253                     CheckTempMin:
+  1658 0000F253 AD 90 01            	LDA		R_SpecFlag
+  1659 0000F256 29 10               	AND		#D_Neg
+  1660 0000F258 D0 6E               	BNE		CurrentTempNegMin
+  1661 0000F25A AD 91 01            	LDA		R_TempMin_Sign
+  1662 0000F25D 29 10               	AND		#D_Neg
+  1663 0000F25F D0 44               	BNE		ExitTempUpdate
+  1664 0000F261 AD 9B 01            	LDA		R_DispTemper+0
+  1665 0000F264 CD 9F 01            	CMP		R_TempMin+0
+  1666 0000F267 F0 05               	BEQ		CompareTempMinLow
+  1667 0000F269 90 0E               	BCC		UpdateTempMin
+  1668 0000F26B 4C A5 F2            	JMP		ExitTempUpdate
+  1669                              
+  1670 0000F26E                     CompareTempMinLow:
+  1671 0000F26E AD 9C 01            	LDA		R_DispTemper+1
+  1672 0000F271 CD A0 01            	CMP		R_TempMin+1
+  1673 0000F274 B0 2F               	BCS		ExitTempUpdate
+  1674 0000F276 4C 79 F2            	JMP		UpdateTempMin
+  1675                              
+  1676 0000F279                     UpdateTempMin:
+  1677 0000F279 AD 9B 01            	LDA		R_DispTemper+0
+  1678 0000F27C 8D 9F 01            	STA		R_TempMin+0
+  1679 0000F27F AD 9C 01            	LDA		R_DispTemper+1
+  1680 0000F282 8D A0 01            	STA		R_TempMin+1
+  1681 0000F285 AD 90 01            	LDA		R_SpecFlag
+  1682 0000F288 8D 91 01            	STA		R_TempMin_Sign
+  1683 0000F28B AD 95 01            	LDA		R_DispTemper_F+0
+  1684 0000F28E 8D 99 01            	STA		R_MINDispTemper_F+0
+  1685 0000F291 AD 96 01            	LDA		R_DispTemper_F+1
+  1686 0000F294 8D 9A 01            	STA		R_MINDispTemper_F+1
+  1687 0000F297 AD A1 00            	LDA		R_TempFlag
+  1688 0000F29A 29 04               	AND		#D_TempFReg
+  1689 0000F29C 0D 91 01            	ORA		R_TempMin_Sign
+  1690 0000F29F 8D 91 01            	STA		R_TempMin_Sign
+  1691 0000F2A2 4C A5 F2            	JMP		ExitTempUpdate
+  1692                              
+  1693 0000F2A5                     ExitTempUpdate:
+  1694 0000F2A5 60                  	RTS
+  1695                              
+  1696 0000F2A6                     CurrentTempIsNeg:
+  1697 0000F2A6 AD 92 01            	LDA		R_TempMax_Sign
+  1698 0000F2A9 29 10               	AND		#D_Neg
+  1699 0000F2AB D0 03               	BNE		CompareNegativeMax
+  1700 0000F2AD 4C 53 F2            	JMP		CheckTempMin
+  1701                              
+  1702 0000F2B0                     CompareNegativeMax:
+  1703 0000F2B0 AD 9B 01            	LDA		R_DispTemper+0
+  1704 0000F2B3 CD 9D 01            	CMP		R_TempMax+0
+  1705 0000F2B6 F0 05               	BEQ		CompareNegativeMaxLow
+  1706 0000F2B8 B0 99               	BCS		CheckTempMin
+  1707 0000F2BA 4C 24 F2            	JMP		UpdateTempMax
+  1708                              
+  1709 0000F2BD                     CompareNegativeMaxLow:
+  1710 0000F2BD AD 9C 01            	LDA		R_DispTemper+1
+  1711 0000F2C0 CD 9E 01            	CMP		R_TempMax+1
+  1712 0000F2C3 B0 8E               	BCS		CheckTempMin
+  1713 0000F2C5 4C 24 F2            	JMP		UpdateTempMax
+  1714                              
+  1715 0000F2C8                     CurrentTempNegMin:
+  1716 0000F2C8 AD 91 01            	LDA		R_TempMin_Sign
+  1717 0000F2CB 29 10               	AND		#D_Neg
+  1718 0000F2CD D0 03               	BNE		CompareNegativeMin
+  1719 0000F2CF 4C 79 F2            	JMP		UpdateTempMin
+  1720                              
+  1721 0000F2D2                     CompareNegativeMin:
+  1722 0000F2D2 AD 9B 01            	LDA		R_DispTemper+0
+  1723 0000F2D5 CD 9F 01            	CMP		R_TempMin+0
+  1724 0000F2D8 F0 05               	BEQ		CompareNegativeMinLow
+  1725 0000F2DA B0 9D               	BCS		UpdateTempMin
+  1726 0000F2DC 4C A5 F2            	JMP		ExitTempUpdate
+  1727                              
+  1728 0000F2DF                     CompareNegativeMinLow:
+  1729 0000F2DF AD 9C 01            	LDA		R_DispTemper+1
+  1730 0000F2E2 CD A0 01            	CMP		R_TempMin+1
+  1731 0000F2E5 B0 BE               	BCS		ExitTempUpdate
+  1732 0000F2E7 4C 79 F2            	JMP		UpdateTempMin
+  1733                              
+  1734                              ;-------------------------------------------------------
+  1735                              ; 函数: UpdateHumidityExtremes
+  1736                              ; 作用: 更新最高/最低湿度记录。
+  1737 0000F2EA                     UpdateHumidityExtremes:
+  1738 0000F2EA AD A1 01            	LDA		R_DispHum
+  1739 0000F2ED CD A2 01            	CMP		R_HumMax
+  1740 0000F2F0 90 0D               	BCC		CheckHumMin
+  1741 0000F2F2 AD A1 01            	LDA		R_DispHum
+  1742 0000F2F5 8D A2 01            	STA		R_HumMax
+  1743 0000F2F8 AD 90 01            	LDA		R_SpecFlag
+  1744 0000F2FB 8D 94 01            	STA		R_HumMax_Sign
+  1745 0000F2FE 60                  	RTS
+  1746                              
+  1747 0000F2FF                     CheckHumMin:
+  1748 0000F2FF AD A1 01            	LDA		R_DispHum
+  1749 0000F302 CD A3 01            	CMP		R_HumMin
+  1750 0000F305 B0 0C               	BCS		ExitHumUpdate
+  1751 0000F307 AD A1 01            	LDA		R_DispHum
+  1752 0000F30A 8D A3 01            	STA		R_HumMin
+  1753 0000F30D AD 90 01            	LDA		R_SpecFlag
+  1754 0000F310 8D 93 01            	STA		R_HumMin_Sign
+  1755                              
+  1756 0000F313                     ExitHumUpdate:
+  1757 0000F313 60                  	RTS
+  1758                              
+  1759                              ;-------------------------------------------------------
+  1760                              ; 输入：当前温湿度样本和趋势窗口缓存。
+  1761                              ; 输出：更新温湿度趋势窗口与刷新位。
+  1762                              ; 调试：看 R_TrendFlags、各 Max/Min/EqCnt 是否随着样本推进。
+  1763 0000F314                     F_UpdateTrendState:
+  1764 0000F314 AD 87 01            	LDA		R_TrendFlags
+  1765 0000F317 29 01               	AND		#D_TrendInit
+  1766 0000F319 F0 10               	BEQ		F_TrendSeedCurrent
+  1767 0000F31B AD 87 01            	LDA		R_TrendFlags
+  1768 0000F31E 29 F7               	AND		#.not.D_TrendTempRefresh
+  1769 0000F320 29 BF               	AND		#.not.D_TrendHumRefresh
+  1770 0000F322 8D 87 01            	STA		R_TrendFlags
+  1771 0000F325 20 66 F3            	JSR		F_UpdateTempTrendState
+  1772 0000F328 4C F4 F3            	JMP		F_UpdateHumTrendState
+  1773                              
+  1774                              ;-------------------------------------------------------
+  1775                              ; 输入：当前温湿度样本。
+  1776                              ; 输出：用当前样本初始化趋势窗口，并触发一次等于图标刷新。
+  1777                              ; 调试：看 Init、TempRefresh、HumRefresh 三个位是否一次性置起。
+  1778 0000F32B                     F_TrendSeedCurrent:
+  1779 0000F32B 20 3F F3            	JSR		F_TrendSeedTempCurrent
+  1780 0000F32E 20 57 F3            	JSR		F_TrendSeedHumCurrent
+  1781 0000F331 A9 3C               	LDA		#C_TrendEq60Samples
+  1782 0000F333 8D 88 01            	STA		R_TrendTempEqCnt
+  1783 0000F336 8D 89 01            	STA		R_TrendHumEqCnt
+  1784 0000F339 A9 49               	LDA		#(D_TrendInit+D_TrendTempRefresh+D_TrendHumRefresh)
+  1785 0000F33B 8D 87 01            	STA		R_TrendFlags
+  1786 0000F33E 60                  	RTS
+  1787                              
+  1788                              ; 输入：当前室内温度原始样本。
+  1789                              ; 输出：重置温度趋势窗口最大/最小值与等值计数。
+  1790                              ; 调试：看 R_TrendTempMax*/Min*/EqCnt 是否都被当前值覆盖。
+  1791 0000F33F                     F_TrendSeedTempCurrent:
+  1792 0000F33F AD 84 01            	LDA		R_TempCH
+  1793 0000F342 8D 8A 01            	STA		R_TrendTempMaxH
+  1794 0000F345 8D 8C 01            	STA		R_TrendTempMinH
+  1795 0000F348 AD 85 01            	LDA		R_TempCL
+  1796 0000F34B 8D 8B 01            	STA		R_TrendTempMaxL
+  1797 0000F34E 8D 8D 01            	STA		R_TrendTempMinL
+  1798 0000F351 A9 00               	LDA		#00H
+  1799 0000F353 8D 88 01            	STA		R_TrendTempEqCnt
+  1800 0000F356 60                  	RTS
+  1801                              
+  1802                              ; 输入：当前室内湿度样本。
+  1803                              ; 输出：重置湿度趋势窗口最大/最小值与等值计数。
+  1804                              ; 调试：看 R_TrendHumMax/Min/EqCnt 是否都被当前值覆盖。
+  1805 0000F357                     F_TrendSeedHumCurrent:
+  1806 0000F357 AD 86 01            	LDA		R_HUM
+  1807 0000F35A 8D 8E 01            	STA		R_TrendHumMax
+  1808 0000F35D 8D 8F 01            	STA		R_TrendHumMin
+  1809 0000F360 A9 00               	LDA		#00H
+  1810 0000F362 8D 89 01            	STA		R_TrendHumEqCnt
+  1811 0000F365 60                  	RTS
+  1812                              
+  1813                              ;-------------------------------------------------------
+  1814                              ; 函数: F_UpdateTempTrendState
+  1815                              ; 作用: 更新温度趋势窗口，并在跨阈值时切换 Up/Down/Equal 图标。
+  1816 0000F366                     F_UpdateTempTrendState:
+  1817 0000F366 20 78 F4            	JSR		F_IsCurrentTempGreaterThanTrendMax
+  1818 0000F369 90 33               	BCC		TrendTemp_CheckMin
+  1819 0000F36B AD 84 01            	LDA		R_TempCH
+  1820 0000F36E 8D 8A 01            	STA		R_TrendTempMaxH
+  1821 0000F371 AD 85 01            	LDA		R_TempCL
+  1822 0000F374 8D 8B 01            	STA		R_TrendTempMaxL
+  1823 0000F377 20 00 F5            	JSR		F_IsTrendTempWindowOverThreshold
+  1824 0000F37A 90 5A               	BCC		TrendTemp_AdvanceEq
+  1825 0000F37C 20 3F F3            	JSR		F_TrendSeedTempCurrent
+  1826 0000F37F AD 87 01            	LDA		R_TrendFlags
+  1827 0000F382 29 06               	AND		#(D_TrendTempUp+D_TrendTempDown)
+  1828 0000F384 C9 02               	CMP		#D_TrendTempUp
+  1829 0000F386 F0 0B               	BEQ		TrendTemp_SetUpNoRefresh
+  1830 0000F388 AD 87 01            	LDA		R_TrendFlags
+  1831 0000F38B 29 FB               	AND		#.not.D_TrendTempDown
+  1832 0000F38D 09 0A               	ORA		#(D_TrendTempUp+D_TrendTempRefresh)
+  1833 0000F38F 8D 87 01            	STA		R_TrendFlags
+  1834 0000F392 60                  	RTS
+  1835                              
+  1836 0000F393                     TrendTemp_SetUpNoRefresh:
+  1837 0000F393 AD 87 01            	LDA		R_TrendFlags
+  1838 0000F396 29 FB               	AND		#.not.D_TrendTempDown
+  1839 0000F398 09 02               	ORA		#D_TrendTempUp
+  1840 0000F39A 8D 87 01            	STA		R_TrendFlags
+  1841 0000F39D 60                  	RTS
+  1842                              
+  1843 0000F39E                     TrendTemp_CheckMin:
+  1844 0000F39E 20 BC F4            	JSR		F_IsCurrentTempLessThanTrendMin
+  1845 0000F3A1 90 33               	BCC		TrendTemp_AdvanceEq
+  1846 0000F3A3 AD 84 01            	LDA		R_TempCH
+  1847 0000F3A6 8D 8C 01            	STA		R_TrendTempMinH
+  1848 0000F3A9 AD 85 01            	LDA		R_TempCL
+  1849 0000F3AC 8D 8D 01            	STA		R_TrendTempMinL
+  1850 0000F3AF 20 00 F5            	JSR		F_IsTrendTempWindowOverThreshold
+  1851 0000F3B2 90 22               	BCC		TrendTemp_AdvanceEq
+  1852 0000F3B4 20 3F F3            	JSR		F_TrendSeedTempCurrent
+  1853 0000F3B7 AD 87 01            	LDA		R_TrendFlags
+  1854 0000F3BA 29 06               	AND		#(D_TrendTempUp+D_TrendTempDown)
+  1855 0000F3BC C9 04               	CMP		#D_TrendTempDown
+  1856 0000F3BE F0 0B               	BEQ		TrendTemp_SetDownNoRefresh
+  1857 0000F3C0 AD 87 01            	LDA		R_TrendFlags
+  1858 0000F3C3 29 FD               	AND		#.not.D_TrendTempUp
+  1859 0000F3C5 09 0C               	ORA		#(D_TrendTempDown+D_TrendTempRefresh)
+  1860 0000F3C7 8D 87 01            	STA		R_TrendFlags
+  1861 0000F3CA 60                  	RTS
+  1862                              
+  1863 0000F3CB                     TrendTemp_SetDownNoRefresh:
+  1864 0000F3CB AD 87 01            	LDA		R_TrendFlags
+  1865 0000F3CE 29 FD               	AND		#.not.D_TrendTempUp
+  1866 0000F3D0 09 04               	ORA		#D_TrendTempDown
+  1867 0000F3D2 8D 87 01            	STA		R_TrendFlags
+  1868 0000F3D5 60                  	RTS
+  1869                              
+  1870 0000F3D6                     TrendTemp_AdvanceEq:
+  1871 0000F3D6 AD 88 01            	LDA		R_TrendTempEqCnt
+  1872 0000F3D9 C9 3C               	CMP		#C_TrendEq60Samples
+  1873 0000F3DB B0 16               	BCS		TrendTemp_Exit
+  1874 0000F3DD EE 88 01            	INC		R_TrendTempEqCnt
+  1875 0000F3E0 AD 88 01            	LDA		R_TrendTempEqCnt
+  1876 0000F3E3 C9 3C               	CMP		#C_TrendEq60Samples
+  1877 0000F3E5 D0 0C               	BNE		TrendTemp_Exit
+  1878 0000F3E7 AD 87 01            	LDA		R_TrendFlags
+  1879 0000F3EA 29 FD               	AND		#.not.D_TrendTempUp
+  1880 0000F3EC 29 FB               	AND		#.not.D_TrendTempDown
+  1881 0000F3EE 09 08               	ORA		#D_TrendTempRefresh
+  1882 0000F3F0 8D 87 01            	STA		R_TrendFlags
+  1883 0000F3F3                     TrendTemp_Exit:
+  1884 0000F3F3 60                  	RTS
+  1885                              
+  1886                              ;-------------------------------------------------------
+  1887                              ; 函数: F_UpdateHumTrendState
+  1888                              ; 作用: 更新湿度趋势窗口，并在跨阈值时切换 Up/Down/Equal 图标。
+  1889 0000F3F4                     F_UpdateHumTrendState:
+  1890 0000F3F4 AD 86 01            	LDA		R_HUM
+  1891 0000F3F7 CD 8E 01            	CMP		R_TrendHumMax
+  1892 0000F3FA 90 2C               	BCC		TrendHum_CheckMin
+  1893 0000F3FC F0 2A               	BEQ		TrendHum_CheckMin
+  1894 0000F3FE 8D 8E 01            	STA		R_TrendHumMax
+  1895 0000F401 20 5D F5            	JSR		F_IsTrendHumWindowOverThreshold
+  1896 0000F404 90 54               	BCC		TrendHum_AdvanceEq
+  1897 0000F406 20 57 F3            	JSR		F_TrendSeedHumCurrent
+  1898 0000F409 AD 87 01            	LDA		R_TrendFlags
+  1899 0000F40C 29 30               	AND		#(D_TrendHumUp+D_TrendHumDown)
+  1900 0000F40E C9 10               	CMP		#D_TrendHumUp
+  1901 0000F410 F0 0B               	BEQ		TrendHum_SetUpNoRefresh
+  1902 0000F412 AD 87 01            	LDA		R_TrendFlags
+  1903 0000F415 29 DF               	AND		#.not.D_TrendHumDown
+  1904 0000F417 09 50               	ORA		#(D_TrendHumUp+D_TrendHumRefresh)
+  1905 0000F419 8D 87 01            	STA		R_TrendFlags
+  1906 0000F41C 60                  	RTS
+  1907                              
+  1908 0000F41D                     TrendHum_SetUpNoRefresh:
+  1909 0000F41D AD 87 01            	LDA		R_TrendFlags
+  1910 0000F420 29 DF               	AND		#.not.D_TrendHumDown
+  1911 0000F422 09 10               	ORA		#D_TrendHumUp
+  1912 0000F424 8D 87 01            	STA		R_TrendFlags
+  1913 0000F427 60                  	RTS
+  1914                              
+  1915 0000F428                     TrendHum_CheckMin:
+  1916 0000F428 AD 86 01            	LDA		R_HUM
+  1917 0000F42B CD 8F 01            	CMP		R_TrendHumMin
+  1918 0000F42E B0 2A               	BCS		TrendHum_AdvanceEq
+  1919 0000F430 8D 8F 01            	STA		R_TrendHumMin
+  1920 0000F433 20 5D F5            	JSR		F_IsTrendHumWindowOverThreshold
+  1921 0000F436 90 22               	BCC		TrendHum_AdvanceEq
+  1922 0000F438 20 57 F3            	JSR		F_TrendSeedHumCurrent
+  1923 0000F43B AD 87 01            	LDA		R_TrendFlags
+  1924 0000F43E 29 30               	AND		#(D_TrendHumUp+D_TrendHumDown)
+  1925 0000F440 C9 20               	CMP		#D_TrendHumDown
+  1926 0000F442 F0 0B               	BEQ		TrendHum_SetDownNoRefresh
+  1927 0000F444 AD 87 01            	LDA		R_TrendFlags
+  1928 0000F447 29 EF               	AND		#.not.D_TrendHumUp
+  1929 0000F449 09 60               	ORA		#(D_TrendHumDown+D_TrendHumRefresh)
+  1930 0000F44B 8D 87 01            	STA		R_TrendFlags
+  1931 0000F44E 60                  	RTS
+  1932                              
+  1933 0000F44F                     TrendHum_SetDownNoRefresh:
+  1934 0000F44F AD 87 01            	LDA		R_TrendFlags
+  1935 0000F452 29 EF               	AND		#.not.D_TrendHumUp
+  1936 0000F454 09 20               	ORA		#D_TrendHumDown
+  1937 0000F456 8D 87 01            	STA		R_TrendFlags
+  1938 0000F459 60                  	RTS
+  1939                              
+  1940 0000F45A                     TrendHum_AdvanceEq:
+  1941 0000F45A AD 89 01            	LDA		R_TrendHumEqCnt
+  1942 0000F45D C9 3C               	CMP		#C_TrendEq60Samples
+  1943 0000F45F B0 16               	BCS		TrendHum_Exit
+  1944 0000F461 EE 89 01            	INC		R_TrendHumEqCnt
+  1945 0000F464 AD 89 01            	LDA		R_TrendHumEqCnt
+  1946 0000F467 C9 3C               	CMP		#C_TrendEq60Samples
+  1947 0000F469 D0 0C               	BNE		TrendHum_Exit
+  1948 0000F46B AD 87 01            	LDA		R_TrendFlags
+  1949 0000F46E 29 EF               	AND		#.not.D_TrendHumUp
+  1950 0000F470 29 DF               	AND		#.not.D_TrendHumDown
+  1951 0000F472 09 40               	ORA		#D_TrendHumRefresh
+  1952 0000F474 8D 87 01            	STA		R_TrendFlags
+  1953 0000F477                     TrendHum_Exit:
+  1954 0000F477 60                  	RTS
+  1955                              
+  1956                              ;-------------------------------------------------------
+  1957                              ; 输入：当前温度样本和趋势温度最大值窗口。
+  1958                              ; 输出：C=1 表示当前温度大于趋势窗口最大值。
+  1959                              ; 调试：重点看正温、负温、跨符号三条比较路径。
+  1960 0000F478                     F_IsCurrentTempGreaterThanTrendMax:
+  1961 0000F478 AD 84 01            	LDA		R_TempCH
+  1962 0000F47B 29 80               	AND		#80H
+  1963 0000F47D F0 1C               	BEQ		TrendTempGtMax_CurrentPos
+  1964 0000F47F AD 8A 01            	LDA		R_TrendTempMaxH
+  1965 0000F482 29 80               	AND		#80H
+  1966 0000F484 F0 34               	BEQ		TrendTempGtMax_False
+  1967 0000F486 AD 84 01            	LDA		R_TempCH
+  1968 0000F489 CD 8A 01            	CMP		R_TrendTempMaxH
+  1969 0000F48C 90 2A               	BCC		TrendTempGtMax_True
+  1970 0000F48E D0 2A               	BNE		TrendTempGtMax_False
+  1971 0000F490 AD 85 01            	LDA		R_TempCL
+  1972 0000F493 CD 8B 01            	CMP		R_TrendTempMaxL
+  1973 0000F496 90 20               	BCC		TrendTempGtMax_True
+  1974 0000F498 4C BA F4            	JMP		TrendTempGtMax_False
+  1975                              
+  1976 0000F49B                     TrendTempGtMax_CurrentPos:
+  1977 0000F49B AD 8A 01            	LDA		R_TrendTempMaxH
+  1978 0000F49E 29 80               	AND		#80H
+  1979 0000F4A0 D0 16               	BNE		TrendTempGtMax_True
+  1980 0000F4A2 AD 84 01            	LDA		R_TempCH
+  1981 0000F4A5 29 7F               	AND		#7FH
+  1982 0000F4A7 CD 8A 01            	CMP		R_TrendTempMaxH
+  1983 0000F4AA 90 0E               	BCC		TrendTempGtMax_False
+  1984 0000F4AC D0 0A               	BNE		TrendTempGtMax_True
+  1985 0000F4AE AD 85 01            	LDA		R_TempCL
+  1986 0000F4B1 CD 8B 01            	CMP		R_TrendTempMaxL
+  1987 0000F4B4 90 04               	BCC		TrendTempGtMax_False
+  1988 0000F4B6 F0 02               	BEQ		TrendTempGtMax_False
+  1989                              
+  1990 0000F4B8                     TrendTempGtMax_True:
+  1991 0000F4B8 38                  	SEC
+  1992 0000F4B9 60                  	RTS
+  1993                              
+  1994 0000F4BA                     TrendTempGtMax_False:
+  1995 0000F4BA 18                  	CLC
+  1996 0000F4BB 60                  	RTS
+  1997                              
+  1998                              ;-------------------------------------------------------
+  1999                              ; 输入：当前温度样本和趋势温度最小值窗口。
+  2000                              ; 输出：C=1 表示当前温度小于趋势窗口最小值。
+  2001                              ; 调试：重点看正温、负温、跨符号三条比较路径。
+  2002 0000F4BC                     F_IsCurrentTempLessThanTrendMin:
+  2003 0000F4BC AD 84 01            	LDA		R_TempCH
+  2004 0000F4BF 29 80               	AND		#80H
+  2005 0000F4C1 F0 1E               	BEQ		TrendTempLtMin_CurrentPos
+  2006 0000F4C3 AD 8C 01            	LDA		R_TrendTempMinH
+  2007 0000F4C6 29 80               	AND		#80H
+  2008 0000F4C8 F0 34               	BEQ		TrendTempLtMin_True
+  2009 0000F4CA AD 84 01            	LDA		R_TempCH
+  2010 0000F4CD CD 8C 01            	CMP		R_TrendTempMinH
+  2011 0000F4D0 90 2A               	BCC		TrendTempLtMin_False
+  2012 0000F4D2 D0 2A               	BNE		TrendTempLtMin_True
+  2013 0000F4D4 AD 85 01            	LDA		R_TempCL
+  2014 0000F4D7 CD 8D 01            	CMP		R_TrendTempMinL
+  2015 0000F4DA 90 20               	BCC		TrendTempLtMin_False
+  2016 0000F4DC F0 1E               	BEQ		TrendTempLtMin_False
+  2017 0000F4DE 4C FE F4            	JMP		TrendTempLtMin_True
+  2018                              
+  2019 0000F4E1                     TrendTempLtMin_CurrentPos:
+  2020 0000F4E1 AD 8C 01            	LDA		R_TrendTempMinH
+  2021 0000F4E4 29 80               	AND		#80H
+  2022 0000F4E6 D0 14               	BNE		TrendTempLtMin_False
+  2023 0000F4E8 AD 84 01            	LDA		R_TempCH
+  2024 0000F4EB 29 7F               	AND		#7FH
+  2025 0000F4ED CD 8C 01            	CMP		R_TrendTempMinH
+  2026 0000F4F0 90 0C               	BCC		TrendTempLtMin_True
+  2027 0000F4F2 D0 08               	BNE		TrendTempLtMin_False
+  2028 0000F4F4 AD 85 01            	LDA		R_TempCL
+  2029 0000F4F7 CD 8D 01            	CMP		R_TrendTempMinL
+  2030 0000F4FA 90 02               	BCC		TrendTempLtMin_True
+  2031                              
+  2032 0000F4FC                     TrendTempLtMin_False:
+  2033 0000F4FC 18                  	CLC
+  2034 0000F4FD 60                  	RTS
+  2035                              
+  2036 0000F4FE                     TrendTempLtMin_True:
+  2037 0000F4FE 38                  	SEC
+  2038 0000F4FF 60                  	RTS
+  2039                              
+  2040                              ;-------------------------------------------------------
+  2041                              ; 输入：趋势温度窗口最大值/最小值。
+  2042                              ; 输出：C=1 表示温度趋势窗口跨度已经大于 1.0C。
+  2043                              ; 调试：看同号和跨零两种窗口跨度计算是否都正确。
+  2044 0000F500                     F_IsTrendTempWindowOverThreshold:
+  2045 0000F500 AD 8A 01            	LDA		R_TrendTempMaxH
+  2046 0000F503 29 80               	AND		#80H
+  2047 0000F505 F0 1A               	BEQ		TrendTempSpan_MaxPositive
+  2048 0000F507 38                  	SEC
+  2049 0000F508 AD 8D 01            	LDA		R_TrendTempMinL
+  2050 0000F50B ED 8B 01            	SBC		R_TrendTempMaxL
+  2051 0000F50E AA                  	TAX
+  2052 0000F50F AD 8C 01            	LDA		R_TrendTempMinH
+  2053 0000F512 ED 8A 01            	SBC		R_TrendTempMaxH
+  2054 0000F515 90 44               	BCC		TrendTempSpan_False
+  2055 0000F517 D0 40               	BNE		TrendTempSpan_True
+  2056 0000F519 8A                  	TXA
+  2057 0000F51A C9 0B               	CMP		#C_TrendTempOver1C
+  2058 0000F51C 90 3D               	BCC		TrendTempSpan_False
+  2059 0000F51E 4C 59 F5            	JMP		TrendTempSpan_True
+  2060                              
+  2061 0000F521                     TrendTempSpan_MaxPositive:
+  2062 0000F521 AD 8C 01            	LDA		R_TrendTempMinH
+  2063 0000F524 29 80               	AND		#80H
+  2064 0000F526 D0 1A               	BNE		TrendTempSpan_CrossZero
+  2065 0000F528 38                  	SEC
+  2066 0000F529 AD 8B 01            	LDA		R_TrendTempMaxL
+  2067 0000F52C ED 8D 01            	SBC		R_TrendTempMinL
+  2068 0000F52F AA                  	TAX
+  2069 0000F530 AD 8A 01            	LDA		R_TrendTempMaxH
+  2070 0000F533 ED 8C 01            	SBC		R_TrendTempMinH
+  2071 0000F536 90 23               	BCC		TrendTempSpan_False
+  2072 0000F538 D0 1F               	BNE		TrendTempSpan_True
+  2073 0000F53A 8A                  	TXA
+  2074 0000F53B C9 0B               	CMP		#C_TrendTempOver1C
+  2075 0000F53D 90 1C               	BCC		TrendTempSpan_False
+  2076 0000F53F 4C 59 F5            	JMP		TrendTempSpan_True
+  2077                              
+  2078 0000F542                     TrendTempSpan_CrossZero:
+  2079 0000F542 18                  	CLC
+  2080 0000F543 AD 8B 01            	LDA		R_TrendTempMaxL
+  2081 0000F546 6D 8D 01            	ADC		R_TrendTempMinL
+  2082 0000F549 AA                  	TAX
+  2083 0000F54A AD 8C 01            	LDA		R_TrendTempMinH
+  2084 0000F54D 29 7F               	AND		#7FH
+  2085 0000F54F 6D 8A 01            	ADC		R_TrendTempMaxH
+  2086 0000F552 D0 05               	BNE		TrendTempSpan_True
+  2087 0000F554 8A                  	TXA
+  2088 0000F555 C9 0B               	CMP		#C_TrendTempOver1C
+  2089 0000F557 90 02               	BCC		TrendTempSpan_False
+  2090                              
+  2091 0000F559                     TrendTempSpan_True:
+  2092 0000F559 38                  	SEC
+  2093 0000F55A 60                  	RTS
+  2094                              
+  2095 0000F55B                     TrendTempSpan_False:
+  2096 0000F55B 18                  	CLC
+  2097 0000F55C 60                  	RTS
+  2098                              
+  2099                              ;-------------------------------------------------------
+  2100                              ; 输入：趋势湿度窗口最大值/最小值。
+  2101                              ; 输出：C=1 表示湿度趋势窗口跨度已经大于 5%RH。
+  2102                              ; 调试：看湿度最大最小差值是否跨过 5%RH 阈值。
+  2103 0000F55D                     F_IsTrendHumWindowOverThreshold:
+  2104 0000F55D AD 8E 01            	LDA		R_TrendHumMax
+  2105 0000F560 38                  	SEC
+  2106 0000F561 ED 8F 01            	SBC		R_TrendHumMin
+  2107 0000F564 C9 06               	CMP		#C_TrendHumOver5
+  2108 0000F566 90 02               	BCC		TrendHumSpan_False
+  2109 0000F568 38                  	SEC
+  2110 0000F569 60                  	RTS
+  2111                              
+  2112 0000F56A                     TrendHumSpan_False:
+  2113 0000F56A 18                  	CLC
+  2114 0000F56B 60                  	RTS
+  2115                              
+  2116                              .END
+0 Error(s), 0 Warning(s).
+

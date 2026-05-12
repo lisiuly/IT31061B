@@ -1,0 +1,36 @@
+# Generalplus IDE Solution File, Format Version 1.0.0
+# Warning: do not edit or delete this solution file!
+
+# ////////////////////////////////////////////////////
+# Begin Solution
+<Solution>
+	NAME : IT31061B
+	GUID : {ADAA336B-D935-4862-BD3E-76AD12B47FB2}
+	STARTUP : {42C7D3BF-1E4E-4D73-B672-714D0422E288}
+	ACTIVECONFIGURATION : Release
+	AUTOOPENPROJECTSETTING : TRUE
+</Solution>
+# End Solution
+
+# ////////////////////////////////////////////////////
+# Begin Project
+<Projects>
+	COUNT : 1
+	<Project1>
+		NAME : IY0078A
+		GUID : {42C7D3BF-1E4E-4D73-B672-714D0422E288}
+		PATH : .\IY0078A.gpproj
+		Dependencies : 
+	</Project1>
+</Projects>
+
+# End Project
+# ////////////////////////////////////////////////////
+# ////////////////////////////////////////////////////
+# Begin BookMark
+<BookMarks>
+	COUNT : 0
+</BookMarks>
+
+# End BookMark
+# ////////////////////////////////////////////////////

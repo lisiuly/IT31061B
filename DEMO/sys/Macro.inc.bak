@@ -1,0 +1,421 @@
+;==========================================
+; Constant define area
+C_SramAddrStart		    .EQU		0080H	;SRAM start address
+C_SramAddrEnd   		.EQU		00FFH	;SRAM end address
+C_DPRAMAddrStart		.EQU		3E00H	;DPRAM start address
+C_DPRAMAddrEnd   		.EQU		3FFFH	;DPRAM end address
+
+D_Bit0					equ		01H
+D_Bit1					equ		02H
+D_Bit2					equ		04H
+D_Bit3					equ		08H
+D_Bit4					equ		10H
+D_Bit5					equ		20H
+D_Bit6					equ		40H
+D_Bit7					equ		80H
+
+C_High		equ	0x01
+C_Input		equ	0x00
+
+;PCDir for 1  is output, for 0 is input
+C_PC0Dir	equ	D_Bit0
+C_PC1Dir	equ	D_Bit1
+C_PC2Dir	equ	D_Bit2
+C_PC3Dir	equ	D_Bit3
+C_PC6Dir	equ	D_Bit6
+C_PC7Dir	equ	D_Bit7
+
+D_BLight	equ	D_Bit2
+D_Pulse		equ	D_Bit3
+D_LVD		equ	D_Bit5
+
+
+C_MusicOne	equ	21
+C_MusicAll	equ	22
+C_MusicStop	equ	23
+C_MinVol	equ	31
+C_MaxVol	equ	45
+
+;;============================================================================
+;Macro Name: %M_ClearWatchDog
+;Purpose: Clear Watchdog
+;Destroy: A
+;;============================================================================
+%M_ClearWatchDog:		.MACRO 
+	LDA		#D_WDT_Clear
+	STA		P_WDT_Flag_Clear			; Clear WDT
+	.ENDM
+;;============================================================================
+;Macro Name: %M_DisAllInt
+;Purpose: Disable all interrupt 
+;Destroy: A
+;;============================================================================
+%F_InitINT:		.MACRO
+		LDA		#00000111b		;2HZ （bit0~2) for 111 is 4K 			;timeBaseA 2hz timeBaseB 16hz
+		STA		P_TIMER_TimeBase_Sel		
+		LDA		#D_128HzInt+D_TMBAInt+D_Timer0Int;+D_TMBBIn
+		STA		P_INT_Ctrl
+		LDA		#00
+		STA		P_INT_Ctrl2		;disable TMR1 INT
+		LDA		#D_TimerEn+D_TimerFallEdge+D_TimerSrcA_VDD+D_TimerSrcB_LF
+		STA		P_TIMER_Timer0_Ctrl
+		LDA		#0xC8
+		STA		P_TIMER_TM0Data_LB		;8k
+		LDA		#0xFF
+		STA		P_TIMER_TM0Data_HB
+	.ENDM
+;;============================================================================
+;Macro Name: %DisableLCD
+;Purpose: Disable LCD
+;Destroy: A
+;;============================================================================
+%DisableLCD:		.MACRO
+	
+	LDA	#D_LCDMode_DisplayOff
+	STA	P_LCD_Ctrl
+	.ENDM
+;-----------------------------------------------------------------------------
+; Macro Name:	%M_InitLCD
+; Description:	Initialize LCD configuration after power on
+;-----------------------------------------------------------------------------	
+%M_InitLCD:		.MACRO
+    LDA		#D_LCDMode_Normal+D_LCDSetting_3Bias_4Duty+D_LCDGreenMode_En
+;	LDA		#(D_LCDMode_Normal+D_LCDSetting_3Bias_4Duty)
+	STA		P_LCD_Ctrl		;1/4duty,1/3bias,normal scan
+
+	.ENDM
+;-----------------------------------------------------------------------------
+; Macro Name:	%FillLcdDpram
+; Description:	Fill LCD DPRAM $50 ~$5F
+;-----------------------------------------------------------------------------
+;%FillLcdDpram	.MACRO	mData
+;		
+;		%M_ClearWatchDog
+;		LDX		#00H
+;		LDA     mData
+;?L_ClrDpramLoop:
+;		STA		$50,X
+;		INX
+;		CPX		#10H
+;		BNE		?L_ClrDpramLoop	
+;
+;	.ENDM
+
+;==========================================================================
+;Macro Name: %M_SetPC7_InputPL                 Attrib     Dir    Data
+;Purpose: Set PortC7 iutput pull low            0          0      1
+;Destroy: A
+;==========================================================================
+%M_SetPC7_InputPL:	.MACRO
+	    LDA		P_IO_PortC_Attrib
+		AND     #7FH
+		STA		P_IO_PortC_Attrib
+		
+		LDA		P_IO_PortC_Dir
+		AND     #7FH
+		STA		P_IO_PortC_Dir
+		
+		LDA		P_IO_PortC_Buffer
+		ORA		#10000000B
+		STA		P_IO_PortC_Data
+
+			.ENDM
+;==========================================================================
+;Macro Name: %M_SetPC7_InputPH               Attrib     Dir    Data
+;Purpose: Set PortC7 iutput pull high         1          0      1
+;Destroy: A
+;==========================================================================
+%M_SetPC7_InputPH:	.MACRO
+	    LDA		P_IO_PortC_Attrib
+		ORA     #80H
+		STA		P_IO_PortC_Attrib
+		
+		LDA		P_IO_PortC_Dir
+		AND     #7FH
+		STA		P_IO_PortC_Dir
+		
+		LDA		P_IO_PortC_Buffer
+		ORA		#10000000B
+		STA		P_IO_PortC_Data
+
+			.ENDM
+;==========================================================================
+;Macro Name: %M_SetPC7_Output               Attrib     Dir    Data
+;Purpose: Set PortC7 driving  low            0          1      0
+;Destroy: A
+;==========================================================================
+%M_SetPC7_OutputL:	.MACRO
+        LDA		P_IO_PortC_Attrib
+		AND     #7FH
+		STA		P_IO_PortC_Attrib
+		
+		LDA		P_IO_PortC_Dir
+		ORA     #80H
+		STA		P_IO_PortC_Dir
+		
+		LDA		P_IO_PortC_Buffer
+		AND		#01111111b
+		STA		P_IO_PortC_Data
+			.ENDM
+;==========================================================================
+;Macro Name: %M_SetPC7_Output             Attrib     Dir    Data
+;Purpose: Set PortC7 driving  high          0         1      1
+;Destroy: A
+;==========================================================================
+%M_SetPC7_OutputH:	.MACRO
+        LDA		P_IO_PortC_Attrib
+		AND     #7FH
+		STA		P_IO_PortC_Attrib
+		
+		LDA		P_IO_PortC_Dir
+		ORA     #80H
+		STA		P_IO_PortC_Dir
+		
+		LDA		P_IO_PortC_Buffer
+		ORA		#10000000B
+		STA		P_IO_PortC_Data
+		
+			.ENDM
+;----------------------------------------------------------
+;/***********************************************/
+;         i.L=1 
+%bits:   .MACRO   i,L             ;BYTE i;  
+          lda     i               ;ex.  
+          ora     #L              ;  %bits 10H,_BIT0
+		                   ;  10H.0=1
+          sta     i               ;
+         .ENDM    
+
+;/***********************************************/
+;         i.L=0
+%bitr:   .MACRO   i,L             ;BYTE i;  
+          lda     i               ;ex.  
+          and     #.NOT.L         ;  %bitr 10H,_BIT0;  10H.0=0
+          sta     i
+         .ENDM    
+
+;/***********************************************/
+;         if(i.L==1) goto N
+%btst:   .MACRO   i,L,N           ;BYTE i;  
+          lda     i               ;ex.   
+          and     #L              ;  %btst 10H,_BIT0,N
+          bne     N               ;  if(10H.0=1) goto N 
+         .ENDM    
+                                  
+;/***********************************************/
+;         if(i.L==0) goto N
+%btsf:   .MACRO   i,L,N           ;BYTE i;    
+          lda     i               ;ex.   
+          and     #L              ;  %btsf 10H,_BIT0,N
+          beq     N               ;  if(10H.0=0) goto N 
+         .ENDM    
+  
+;-----------------------------------------------------------------------------
+; Macro Name:	%InitSystem
+; Description:	Initial system port
+;-----------------------------------------------------------------------------
+%InitSystem		.MACRO
+		LDA		#0
+		STA		P_Reset_Status	;Clear AC key reset flag
+		%Enable32KLF
+	.ENDM
+;-----------------------------------------------------------------------------
+; Macro Name:	%Disable32KLF
+; Description:	Disable Low Frequency
+;-----------------------------------------------------------------------------
+%Disable32KLF	.MACRO
+
+		LDA		#D_LFDisable
+		STA		P_CLK_32768_En
+
+		.ENDM
+;-----------------------------------------------------------------------------
+; Macro Name:	%Enable32KLF
+; Description:	Enable Low Frequency
+;-----------------------------------------------------------------------------
+%Enable32KLF		.MACRO
+
+		LDA		#D_LFEnable
+		STA		P_CLK_32768_En
+
+	.ENDM		
+;-----------------------------------------------------------------------------
+; Macro Name:	%InitLCD
+; Description:	Initialize LCD configuration after power on
+;-----------------------------------------------------------------------------	
+%InitLCD:		.MACRO
+
+		LDA		#(D_Duty_1_4+D_Bias_1_3+D_ScanEnable)
+		STA		P_LCD_Ctrl		;1/11duty,1/4bias,normal scan
+		
+		LDA     #D_VLCD_33            ;VLCD = 4.5V (max value)
+		STA     P_LCD_VLCD_Ctrl
+	
+	.ENDM
+;-----------------------------------------------------------------------------
+; Macro Name:	%FillSram
+; Description:	Fill data to SRAM whole space
+; Input:		mData
+;-----------------------------------------------------------------------------	
+%FillSram		.MACRO	mData
+		
+		LDA		#.LOW.(C_SramAddrStart+2)
+		STA		C_SramAddrStart
+		LDA		#.HIGH.(C_SramAddrStart+2)
+		STA		C_SramAddrStart+1
+		
+		LDX     #0
+?L_FillLoop#:
+        LDA     mData
+		STA     (C_SramAddrStart,X)
+		
+		LDA     C_SramAddrStart+1
+		CMP     #.HIGH.C_SramAddrEnd
+		BCC     ?L_IncSramAddr#
+		LDA     C_SramAddrStart
+		CMP     #.LOW.C_SramAddrEnd
+		BCS     ?L_End#
+		
+?L_IncSramAddr#:    ;Increase sram address
+        INC     C_SramAddrStart
+		BNE     ?L_FillLoop#
+		INC     C_SramAddrStart+1
+		%WatchDogClear
+        JMP     ?L_FillLoop#
+?L_End#:
+        
+        LDA     mData
+        STA     C_SramAddrStart
+        STA     C_SramAddrStart+1
+        
+        LDX		#00H
+?L_HSRAMloop:
+		LDA		mData
+		STA		$180,X
+		INX	
+		CPX		#80H
+		BNE		?L_HSRAMloop
+		
+	.ENDM
+	
+;-----------------------------------------------------------------------------
+; Macro Name:	%ClrSRAM
+; Description:	Clear SRAM $60 ~ $95F
+;-----------------------------------------------------------------------------	
+%ClrSRAM:	.MACRO
+
+		%FillSram	#0
+
+	.ENDM
+;-----------------------------------------------------------------------------
+;-----------------------------------------------------------------------------
+; Macro Name:	%FillLcdDpram
+; Description:	Fill LCD DPRAM $3E00 ~$3FFF
+;-----------------------------------------------------------------------------
+%FillLcdDpram	.MACRO	mData
+		
+		%WatchDogClear
+		LDX		#00H
+		LDY		#00H
+?L_ClrDpramLoop:
+		LDA     mData
+		STA		$3E00,X
+		INY
+		CPY		#04H
+		BNE		?L_ClrDpramLoopI
+		LDY		#00H
+		TXA
+		CLC
+		ADC		#0CH
+		TAX
+?L_ClrDpramLoopI:		
+		INX
+		CPX		#80H
+		BNE		?L_ClrDpramLoop
+	.ENDM
+;-----------------------------------------------------------------------------
+%F_Initinal_IO	.MACRO
+		LDA		#00001111b
+		STA		P_IO_PortA_Dir
+		LDA		#00001111b
+		STA		P_IO_PortA_Data		;先PA0-3作为LED屏的SEG，在扫描时也要作为按键的输入口
+		
+		LDA		#0
+		STA		P_IO_PortB_Attrib
+		LDA		#11111000b		; 
+		STA		P_IO_PortB_Dir
+		LDA		#00001000b		;PB3-7作为LED屏的COM口，在不亮时要输出高
+		STA		P_IO_PortB_Data	
+
+		LDA		#00H
+		STA		P_IO_PortC_Dir
+		LDA		#00000000b
+		STA		P_IO_PortC_Data		;PC口未用到，全部设置 input pull low
+		
+		LDA		#0
+		STA		P_IO_PortD_Attrib
+		LDA		#00100000b		;
+		STA		P_IO_PortD_Dir
+		LDA		#00011100b			;PD1作为外电检测，要输入下拉，PD5作为蜂鸣器功能，要输出低
+		STA		P_IO_PortD_Data		;PD2/3/4作为RFC功能，初始要input floating
+		
+		LDA		#11110111b
+		STA		P_IO_PortE_Dir
+		LDA		#11110111b			;PE0,作为按键的公共端输出高，PE3未用，置input pull low 
+		STA		P_IO_PortE_Data		;PE1,2,4,5,6作为LED屏的SEG output high,PE7作为LED屏的COM5
+		
+		LDA		#00
+		STA		P_IO_Ctrl	;all as normal IO
+		.ENDM
+;-----------------------------------------------------------------------------
+; Clear watch dog
+%WatchDogClear	 .MACRO
+
+	   STA	   P_WDT_Flag_Clear
+
+	   .ENDM
+;-----------------------------------------------------------------------------
+; Macro Name:	%ClrPage0_60H_6FH
+; Description:	Clear SRAM $60 ~ $7F
+;-----------------------------------------------------------------------------	
+%ClrPage0_60H_6FH:	.MACRO
+
+		LDX		#0FH
+		LDA		#0
+		
+?L_ClrLoop#:
+		STA		$60,X
+		DEX
+		BPL		?L_ClrLoop#	
+
+	.ENDM
+;-----------------------------------------------------------------------------
+; Macro Name:	%PushAll                                                        
+; Description:	Push                                                          
+;-----------------------------------------------------------------------------
+%PushAll:		.MACRO                                                            
+		PHP                                                                         
+		PHA                                                                         
+		TXA                                                                         
+		PHA                                                                         
+		TYA                                                                         
+		PHA                                                                         
+                                                                       
+			.ENDM                                                                   
+;-----------------------------------------------------------------------------
+; Macro Name:	%PopAll                                                         
+; Description:	Pop                                                           
+;-----------------------------------------------------------------------------
+%PopAll:		.MACRO                                                            
+                                                    
+		PLA                                                                         
+		TAY                                                                         
+		PLA                                                                         
+		TAX                                                                         
+		PLA                                                                         
+		PLP                                                                         
+			.ENDM	                                
+		
+
+
+

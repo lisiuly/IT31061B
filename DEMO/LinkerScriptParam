@@ -1,0 +1,20 @@
+-R ".\IT31061B.qpcres"
+-P ".\IT31061B.qpcact"
+-O ".\_Prog_.lik"
+-B ".\Release\IT31061B.hdb"
+-F "C:\Program Files (x86)\Generalplus\GPIDE_6502 1.3.0\gplus\project\Body\6502\GPL813\\.\ChipInformation\GPL813P01Cx_ChipInfo.conf"
+-S ".\IT31061B.lik"
+-L ".\Release\STARTUP.OBJ"
+-L ".\Release\INT_VEC.OBJ"
+-L ".\Release\RTC.OBJ"
+-L ".\Release\KEY.OBJ"
+-L ".\Release\LCD_DISPLAY.OBJ"
+-L ".\Release\GXHTV4.OBJ"
+-L ".\Release\D_I2C.OBJ"
+-L ".\Release\ALARM.OBJ"
+-L ".\Release\RF.OBJ"
+-L ".\Release\Res_Tbl.obj"
+-N
+-A
+-Z 0xFF
+-D

@@ -1,0 +1,458 @@
+;==========================================================
+;-------------------------------------------
+;F_ClearAllDisplay:		
+;		LDX		#00H
+;		LDY		#00H
+;?L_ClrDpramLoop:
+;		LDA     #00H
+;		STA		$3E00,X
+;		INY
+;		CPY		#04H
+;		BNE		?L_ClrDpramLoopI
+;		LDY		#00H
+;		TXA
+;		CLC
+;		ADC		#0CH
+;		TAX
+;?L_ClrDpramLoopI:		
+;		INX
+;		CPX		#80H
+;		BNE		?L_ClrDpramLoop
+;		RTS
+;;==============================================================================
+;;Writer 
+;;F_displaydigital:
+;;Input A ; X
+;;X: The Number Place  ;    A : The Number
+;use temp register as follow:
+;R_LCDTableIndex
+;R_Display_Number
+;R_LcdSegmentPosition
+;R_Display7Times
+;R_CharTableIndex
+;;=========================================================
+.if 0
+F_LCD_Clear:
+		LDA	#00D
+		LDX	#00D
+	L_Clear_Loop:
+		STA	$A0,X
+		INX
+		CPX	#16
+		BCC	L_Clear_Loop	
+		RTS
+.endif
+;;=========================================================	
+F_ShowAllLCD:
+		LDA	#FFH
+		LDX	#00D
+	L_Set_Loop:
+		STA	$50,X
+		INX
+		CPX	#2FH
+		BCC	L_Set_Loop
+		RTS
+
+		
+;;****************************************************************************		
+;;****************************************************************************
+F_LcdDisplayDigital:
+        	STX     R_LcdTableIndex
+        	TAX	
+        	LDA     T_NumberTable,X
+        	STA     R_Display_Number
+        	LDA	#07
+        	STA	R_Display7Times
+			JMP	L_LcdDisplay8Icon
+			
+			
+;F_LcdDisplayDigital_1:
+;        	STX     R_LcdTableIndex
+;        	TAX	
+;        	LDA     T_NumberTable1,X
+;        	STA     R_Display_Number
+;        	LDA	#07
+;        	STA	R_Display7Times
+;			JMP	L_LcdDisplay8Icon	
+			
+F_LcdDisplay7Char:
+        	STX     R_LcdTableIndex			;lcd position
+        	STA		R_Display_Number		;display value
+        	LDA		#07
+        	STA		R_Display7Times        	
+	L_LcdDisplay8Icon:	
+;			%btsf	R_Flag1,D_LCD1Option,LCD2_Display8Icon
+        	LDX     R_LcdTableIndex
+        	LDA     LcdMapTab+1,X
+        	STA     R_LcdSegmentPosition
+        	ROR     R_Display_Number
+        	BCS     L_DirectSaveSegmentValue
+        	LDA     R_LcdSegmentPosition
+        	EOR     #FFH
+        	STA     R_LcdSegmentPosition
+	L_DirectSaveSegmentValue:
+		
+        	LDA     LcdMapTab,X
+        	TAX
+        	BCC     L_ClearSegment
+        	LDA     $3E00,X
+       	 	ORA     R_LcdSegmentPosition
+        	JMP     L_UpdateSegment
+	L_ClearSegment:
+        	LDA     $3E00,X
+        	AND     R_LcdSegmentPosition       	
+	L_UpdateSegment:
+        	STA     $3E00,X
+        	INC     R_LcdTableIndex
+        	INC     R_LcdTableIndex
+        	
+        	%DJNZ	R_Display7Times,L_LcdDisplay8Icon    	      	
+        	RTS		
+ 
+;;****************************************************************************
+;;**
+;;**    Moudle Name             :       F_Display_OneBit
+;;**    Used By                 :
+;;**    Using                   : R_TempRegister1~2
+;;**    Input                   : X
+;;**    Output                  :
+;;**    Table                   : T_OneBitLCD
+;;**    Describe                : X--T_OneBitLCD
+;;**
+;;****************************************************************************
+;R_Temp1,R_Temp2,R_Temp3,
+
+;===============================================================
+Display_OneBit:
+;			%btsf	R_Flag1,D_LCD1Option,LCD2_DisplayOneBit
+	        LDA     T_Icon+1,X
+	        STA     R_LcdSegmentPosition         ;data
+			LDA     T_Icon,X	
+	        TAX
+	        LDA     3E00H,X
+	        ORA     R_LcdSegmentPosition 
+	        STA     3E00H,X
+	        RTS
+;	  LCD2_DisplayOneBit:
+;	  		LDA     T_Icon1+1,X
+;	        STA     R_LcdSegmentPosition         ;data
+;			LDA     T_Icon1,X	
+;	        TAX
+;	        LDA     00H,X
+;	        ORA     R_LcdSegmentPosition 
+;	        STA     00H,X
+;	        RTS
+;
+;;****************************************************************************
+;;**
+;;**    Moudle Name             :       F_NoDisplay_OneBit
+;;**    Used By                 :
+;;**    Using                   : R_TempRegister1~2
+;;**    Input                   : X
+;;**    Output                  :
+;;**    Table                   : T_OneBitLCD
+;;**    Describe                : X--T_OneBitLCD
+;;**
+;;****************************************************************************
+
+NoDisplay_OneBit:
+;			%btsf	R_Flag1,D_LCD1Option,LCD2_NoDisplayOneBit
+	        LDA     T_Icon+1,X
+	        STA     R_LcdSegmentPosition         ;data
+			LDA     T_Icon,X	
+	        TAX
+	        LDA     R_LcdSegmentPosition 
+	        EOR     #FFH
+	        STA     R_LcdSegmentPosition 
+			LDA     3E00H,X
+	        AND     R_LcdSegmentPosition 
+	        STA     3E00H,X
+	        RTS
+;	 LCD2_NoDisplayOneBit:
+;	 		LDA     T_Icon1+1,X
+;	        STA     R_LcdSegmentPosition         ;data
+;			LDA     T_Icon1,X	
+;	        TAX
+;	        LDA     R_LcdSegmentPosition 
+;	        EOR     #FFH
+;	        STA     R_LcdSegmentPosition 
+;			LDA     00H,X
+;	        AND     R_LcdSegmentPosition 
+;	        STA     00H,X
+;	        RTS
+;*****************************************************'
+;		input value for A, output value H-->>A, L--->>TempBuf
+F_DisplayHLValue:
+			TAX
+			AND	#0FH
+			STA	R_TempBuf		;store low 4-bit
+			TXA
+			ROR	A
+			ROR	A
+			ROR	A
+			ROR	A
+			AND	#0FH
+			RTS	
+			
+
+		
+;;==============================================================================
+;LCD seg com define
+;===============================================================================
+LCD_Emulator	equ	0			;1为调试，0为实际com seg
+.IF	LCD_Emulator
+com0            EQU	0H
+com1            EQU	1H
+com2            EQU	2H
+com3            EQU	3H
+com4            EQU	4H
+
+seg00				EQU 0
+seg01				EQU 1
+seg02				EQU 2
+seg03				EQU 3
+seg04				EQU 4
+seg05				EQU 5
+seg06				EQU 6
+seg07				EQU 7
+seg08				EQU 8
+seg09				EQU 9
+seg10				EQU 10
+seg11				EQU 11
+seg12				EQU 12
+seg13				EQU 13
+seg14				EQU 14
+seg15				EQU 15
+seg16				EQU 16
+seg17				EQU 17
+seg18				EQU 18
+seg19				EQU 19
+seg20				EQU 20
+;seg21				EQU 21
+;seg22				EQU 22
+;seg23				EQU 23
+;seg24				EQU 24
+;seg25				EQU 25
+;seg26				EQU 26
+
+.else
+;
+com0            EQU	0H
+com1            EQU	1H
+com2            EQU	2H
+com3            EQU	3H
+com4            EQU	4H
+
+seg00				EQU 0
+seg01				EQU 1
+seg02				EQU 2
+seg03				EQU 3
+seg04				EQU 4
+seg05				EQU 5
+seg06				EQU 6
+seg07				EQU 7
+seg08				EQU 8
+
+seg09				EQU 09
+seg10				EQU 10
+seg11				EQU 11
+seg12				EQU 12
+seg13				EQU 13
+seg14				EQU 14
+seg15				EQU 15
+seg16				EQU 16
+seg17				EQU 17
+seg18				EQU 18
+seg19				EQU 19
+seg20				EQU 20
+;seg21				EQU 21
+;seg22				EQU 22
+;
+seg23				EQU 26
+seg24				EQU 27
+seg25				EQU 30
+seg26				EQU 31
+
+.ENDIF
+
+
+R_LcdTableIndex			equ	R_TempBuf+1		;ds	1
+R_Display_Number		equ	R_TempBuf+2		;ds	1
+R_LcdSegmentPosition	equ	R_TempBuf+3		;ds	1
+R_Display7Times			equ	R_TempBuf+4		;ds	1
+
+;*****************************************************
+;---------------------Display Table-------------------
+;*****************************************************'	
+T_NumberTable:
+               ;xgfedcba 0  	1		2		3	    	4		5       	6	     	7      8		9
+        DB      00111111B,00000110B,01011011B,01001111B,01100110B,01101101B,01111101B,00000111B,01111111B,01101111B
+        		;NULL		 -		H         	F	      	r        L
+        DB      00000000B,01000000B,01110110B,01110001B,01010000B,00111000B
+
+;       LCD1
+;---------------------------------------------------------------------
+LcdMapTab:	; a     b     c     d     e     f     g
+;---------------------------------------------------------------------
+; New product LCD placeholders
+; NOTE:
+; 1. The com/seg pairs below are temporary test placeholders.
+; 2. Replace each %LCD7S mapping with the real glass mapping.
+; 3. Keep the symbol names unchanged so later display code can target them.
+;---------------------------------------------------------------------
+T_OutCurTeH:	equ	$-LcdMapTab
+	%LCD7S	 com4,seg01, com4,seg02, com2,seg02, com1,seg01, com2,seg01, com3,seg01, com3,seg02	; TODO: replace with real mapping
+T_OutCurTeM:	equ	$-LcdMapTab
+	%LCD7S	 com4,seg03, com4,seg04, com2,seg04, com1,seg03, com2,seg03, com3,seg03, com3,seg04	; TODO: replace with real mapping
+T_OutCurTeL:	equ	$-LcdMapTab
+	%LCD7S	 com3,seg05, com3,seg06, com1,seg06, com0,seg05, com1,seg05, com2,seg05, com2,seg06	; TODO: replace with real mapping
+
+T_OutCurHuH:	equ	$-LcdMapTab
+	%LCD7S	 com1,seg10, com1,seg09, com4,seg09, com4,seg11, com4,seg10, com2,seg10, com3,seg10 ; TODO: replace with real mapping
+T_OutCurHuL:	equ	$-LcdMapTab
+	%LCD7S	 com0,seg08, com1,seg08, com3,seg08, com4,seg08, com3,seg09, com2,seg09, com2,seg08	; TODO: replace with real mapping
+
+; 这一组则是室内当前值区域。
+T_CurTeH:	equ	$-LcdMapTab
+	%LCD7S	 com4,seg12, com3,seg12, com1,seg12, com0,seg12, com0,seg11, com1,seg11, com2,seg12	; TODO: replace with real mapping
+T_CurTeM:	equ	$-LcdMapTab
+	%LCD7S	 com3,seg13, com2,seg14, com0,seg14, com0,seg13, com1,seg13, com2,seg13, com1,seg14; TODO: replace with real mapping
+T_CurTeL:	equ	$-LcdMapTab
+	%LCD7S	 com3,seg15, com2,seg16, com0,seg16, com0,seg15, com1,seg15, com2,seg15, com1,seg16	; TODO: replace with real mapping
+
+T_CurHuH:	equ	$-LcdMapTab
+	%LCD7S	 com3,seg17, com3,seg18, com1,seg18, com0,seg17, com1,seg17, com2,seg17, com2,seg18 ; TODO: replace with real mapping
+T_CurHuL:	equ	$-LcdMapTab
+	%LCD7S	 com3,seg19, com2,seg20, com0,seg20, com0,seg19, com1,seg19, com2,seg19, com1,seg20	; TODO: replace with real mapping
+; ; Temperature max record (left upper, 3 digits)
+; T_MaxTeH:	equ	$-LcdMapTab
+; 	%LCD7S	 com4,seg01, com3,seg01, com2,seg01, com1,seg01, com2,seg00, com4,seg00, com3,seg00	; TODO: replace with real mapping
+; T_MaxTeM:	equ	$-LcdMapTab
+; 	%LCD7S	 com4,seg03, com3,seg03, com2,seg03, com1,seg03, com2,seg02, com4,seg02, com3,seg02	; TODO: replace with real mapping
+; T_MaxTeL:	equ	$-LcdMapTab
+; 	%LCD7S	 com3,seg05, com2,seg05, com1,seg05, com0,seg05, com0,seg04, com2,seg04, com1,seg04	; TODO: replace with real mapping
+
+; ; Temperature min record (left middle, 3 digits)
+; T_MinTeH:	equ	$-LcdMapTab
+; 	%LCD7S	 com4,seg06, com3,seg07, com1,seg07, com0,seg07, com1,seg06, com3,seg06, com2,seg06	; TODO: replace with real mapping
+; T_MinTeM:	equ	$-LcdMapTab
+; 	%LCD7S	 com4,seg17, com3,seg17, com1,seg17, com0,seg17, com2,seg07, com4,seg07, com2,seg17	; TODO: replace with real mapping
+; T_MinTeL:	equ	$-LcdMapTab
+; 	%LCD7S	 com4,seg16, com2,seg15, com1,seg15, com0,seg15, com1,seg16, com3,seg16, com2,seg16	; TODO: replace with real mapping
+
+; ; Humidity max record (left lower, 2 digits)
+; T_MaxHuH:	equ	$-LcdMapTab
+; 	%LCD7S	 com0,seg21, com0,seg22, com2,seg22, com4,seg21, com3,seg21, com1,seg21, com2,seg21	; TODO: replace with real mapping
+; T_MaxHuL:	equ	$-LcdMapTab
+; 	%LCD7S	 com0,seg23, com1,seg23, com3,seg23, com4,seg23, com3,seg22, com1,seg22, com2,seg23	; TODO: replace with real mapping
+
+; ; Humidity min record (left bottom, 2 digits)
+; T_MinHuH:	equ	$-LcdMapTab
+; 	%LCD7S	 com0,seg18, com0,seg19, com2,seg19, com4,seg18, com3,seg18, com1,seg18, com2,seg18	; TODO: replace with real mapping
+; T_MinHuL:	equ	$-LcdMapTab
+; 	%LCD7S	 com0,seg20, com1,seg20, com3,seg20, com4,seg20, com3,seg19, com1,seg19, com2,seg20	; TODO: replace with real mapping
+
+T_Icon:		
+;---------------------------------------------------------------------
+; New product icon placeholders
+; NOTE: temporary icon positions, replace all LCDConvert mappings below.
+;---------------------------------------------------------------------
+T_OutTemp:	equ	$-T_Icon
+	LCDConvert	com4,seg05		;室外温度图标
+T_OutHum:	equ	$-T_Icon
+	LCDConvert	com0,seg06	; 室外机湿度图标	
+T_InTempHum:	equ	$-T_Icon
+	LCDConvert	com4,seg13		;室内温湿度图标
+
+T_InHuUnit:	equ	$-T_Icon
+	LCDConvert	com0,seg18	; 室内机湿度%图标
+T_OutHuUnit:	equ	$-T_Icon
+	LCDConvert	com2,seg07	; 室外机湿度%图标
+
+T_RF:	equ	$-T_Icon
+	LCDConvert	com3,seg00	; RF接收图标
+T_CH:		equ	$-T_Icon
+	LCDConvert	com4,seg00	; 通道图标
+T_1:		equ	$-T_Icon
+	LCDConvert	com0,seg04	; 1图标
+T_2:		equ	$-T_Icon
+	LCDConvert	com0,seg00	; 2图标	
+T_3:		equ	$-T_Icon
+	LCDConvert	com1,seg00	; 3图标
+T_Loop:	equ	$-T_Icon
+	LCDConvert	com2,seg00	; 循环图标
+
+T_InBat:		equ	$-T_Icon
+	LCDConvert	com4,seg18		; 室内低电图标
+T_OutBat:		equ	$-T_Icon
+	LCDConvert	com1,seg07		; 室外机低电图标
+
+T_OutTeNeg:	equ	$-T_Icon
+	LCDConvert	com0,seg02	; 室外温度负号
+T_InTeNeg:	equ	$-T_Icon
+	LCDConvert	com3,seg11	; 室内温度负号
+
+; Legacy aliases: 现有室内主链和趋势/电池逻辑仍沿用旧名字。
+T_TeNeg:	equ	T_InTeNeg
+
+T_InTempDot:	equ	$-T_Icon
+	LCDConvert	com3,seg14	; 室内温度小数点/度数辅助图标
+T_OutTempDot:	equ	$-T_Icon
+	LCDConvert	com4,seg06	; 室外温度小数点/度数辅助图标
+
+T_INCurTe100:	equ	$-T_Icon
+	LCDConvert	com2,seg11	; 室内华氏度超过100的1图标	
+T_OutCurTe100:	equ	$-T_Icon
+	LCDConvert	com0,seg01	; 室外华氏度超过100的1图标
+T_CurTe100:	equ	T_INCurTe100
+
+T_InCUnit:	equ	$-T_Icon
+	LCDConvert	com4,seg15	; 室内机摄氏度图标	
+T_InFUnit:	equ	$-T_Icon
+	LCDConvert	com4,seg14	; 室内机华氏度图标	
+T_CUnit:	equ	T_InCUnit
+T_FUnit:	equ	T_InFUnit
+
+T_OutCUnit:	equ	$-T_Icon
+	LCDConvert	com3,seg07	; 室外机摄氏度图标
+T_OutFUnit:	equ	$-T_Icon
+	LCDConvert	com4,seg07	; 室外机华氏度图标
+
+
+T_InTUp:		equ	$-T_Icon
+	LCDConvert	com3,seg16	; 室内机温度趋势上
+T_InTEq:		equ	$-T_Icon
+	LCDConvert	com4,seg16	; 室内机温度趋势平
+T_InTDn:		equ	$-T_Icon
+	LCDConvert	com4,seg17	; 室内机温度趋势下
+T_InHUp:		equ	$-T_Icon
+	LCDConvert	com4,seg19	; 室内机湿度趋势上
+T_InHEq:		equ	$-T_Icon
+	LCDConvert	com4,seg20	; 室内机湿度趋势平
+T_InHDn:		equ	$-T_Icon
+	LCDConvert	com3,seg20	; 室内机湿度趋势下
+T_TUp:	equ	T_InTUp
+T_TEq:	equ	T_InTEq
+T_TDn:	equ	T_InTDn
+T_HUp:	equ	T_InHUp
+T_HEq:	equ	T_InHEq
+T_HDn:	equ	T_InHDn
+T_Bat:	equ	T_InBat
+
+T_OutTUp:		equ	$-T_Icon
+	LCDConvert	com1,seg04	; 室外机温度趋势上
+T_OutTEq:		equ	$-T_Icon
+	LCDConvert	com0,seg03	; 室外机温度趋势平
+T_OutTDn:		equ	$-T_Icon
+	LCDConvert	com1,seg02	; 室外机温度趋势下
+T_OutHUp:		equ	$-T_Icon
+	LCDConvert	com0,seg07	; 室外机湿度趋势上
+T_OutHEq:		equ	$-T_Icon
+	LCDConvert	com0,seg09	; 室外机湿度趋势平
+T_OutHDn:		equ	$-T_Icon
+	LCDConvert	com0,seg10	; 室外机湿度趋势下
+
+
+.END			
+
+	

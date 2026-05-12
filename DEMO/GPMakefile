@@ -1,0 +1,206 @@
+#####################################################################
+#
+#	Created by 6502 ASM Project		2026-5-12 17:02:04
+#
+#####################################################################
+
+TOOLSDIR		= C:\PROGRA~2\GENERA~1\GPIDE_~1.0\Tools\Compiler\6502
+PROJECTDIR		= E:\project\IT31061B\DEMO
+BODYPATH		= C:\Program Files (x86)\Generalplus\GPIDE_6502 1.3.0\gplus\project\Body\6502\GPL813
+OUTPUTDIR		= .\Release
+IMDIR			= .\Release
+
+BODYSERIES		= GPL813
+INCLUDEPATH		= -I "$(PROJECTDIR)" 
+ASMCONF			= -C "$(BODYPATH)\\.\ASM\GPL813_ASM.conf"
+CHIPINFO		= "$(BODYPATH)\\.\ChipInformation\GPL813P01Cx_ChipInfo.conf"
+ASMFLAG			= -b $(CHIPINFO) -p $(BODYSERIES)_SERIES -p INS_LIB_NOT_EXIST -Tn -l -d -s -SC $(INCLUDEPATH)
+ASMIRPCHECKFLG	= -Mpseudo
+
+ASM				= "$(TOOLSDIR)\6502_Asm.exe"
+ASMIRPCHECK		= "$(TOOLSDIR)\6502_AsmIRPatternCheck.exe"
+RESERVEDAREA	= "$(TOOLSDIR)\6502_ReservedArea.exe"
+MASKOPTION		= "$(TOOLSDIR)\6502_MaskOption.exe"
+INITIALTOOL		= "$(TOOLSDIR)\6502_InitialTool.exe"
+RESCONV			= "$(TOOLSDIR)\6502_ResConverter.exe"
+LINK			= "$(TOOLSDIR)\6502_Linker.exe"
+RM				= del /F 1>NUL 2>NUL
+PROGDATAGEN		= "$(TOOLSDIR)\6502_TableGen.exe"
+ALLOCATOR		= "$(TOOLSDIR)\6502_Allocator.exe"
+LINKSCRIPTGEN	= "$(TOOLSDIR)\6502_LinkerScriptGenerator.exe"
+REPORT			= "$(TOOLSDIR)\6502_Reporter.exe"
+PDFCMSHEET      = "$(TOOLSDIR)\GPePDFConfirmSheet.exe"
+MAKEDIR			= mkdir
+ECHO			= @echo //-----------------------------------------------------------------------
+
+CMSFILE         = $(OUTPUTDIR)\IT31061B.cms
+PDFCMFILE       = $(OUTPUTDIR)\IT31061B_ConfirmSheet.pdf
+PDFCONFIRMSHEETTEMPLATE = C:\Users\dongdong\AppData\Roaming\GENERA~1\GPIDE\GPIDE_~1.0\ePDF\GPL813~2.PDF
+
+OVERWRITELIK	= TRUE
+
+BINFILE			= ".\Release\IT31061B.hdb"
+
+OBJFILES		= \
+	".\RELEASE\STARTUP.OBJ"\
+	".\RELEASE\INT_VEC.OBJ"\
+	".\RELEASE\RTC.OBJ"\
+	".\RELEASE\KEY.OBJ"\
+	".\RELEASE\LCD_DISPLAY.OBJ"\
+	".\RELEASE\GXHTV4.OBJ"\
+	".\RELEASE\D_I2C.OBJ"\
+	".\RELEASE\ALARM.OBJ"\
+	".\RELEASE\RF.OBJ"
+
+OUTPUTFILES		= "$(IMDIR)\*.resobj" \
+				  "$(IMDIR)\*.asm" \
+				  "$(IMDIR)\*.lst" \
+				  "$(IMDIR)\*.obj" \
+				  "$(IMDIR)\*.lib" \
+				  "$(IMDIR)\*.tab" \
+				  "$(IMDIR)\Res_Tbl.obj.asm" \
+				  "$(OUTPUTDIR)\IT31061B.sym" \
+				  "$(OUTPUTDIR)\IT31061B.map" \
+				  "$(OUTPUTDIR)\IT31061B.sbms" \
+				  "$(OUTPUTDIR)\IT31061B.sbm" \
+				  "$(OUTPUTDIR)\IT31061B.s37" \
+				  "$(OUTPUTDIR)\IT31061B.hdb" \
+				  "$(OUTPUTDIR)\IT31061B.rpt" \
+ 				  "$(OUTPUTDIR)\IT31061B.cms" \
+				  "$(OUTPUTDIR)\IT31061B_ConfirmSheet.pdf" \
+				  "$(OUTPUTDIR)\IT31061B_ConfirmSheet.html" \
+				  "$(OUTPUTDIR)\IT31061B.elf" \
+				  "$(OUTPUTDIR)\IT31061B_AIRP.rpt" \
+				  "$(OUTPUTDIR)\IT31061B_Report.html" \
+				  "$(OUTPUTDIR)\IT31061B_Report_MID.html" \
+				  "$(OUTPUTDIR)\IT31061B_Report_MEM.html"
+
+RESDB			= ".\IT31061B.qpcres"
+PROGDB			= ".\IT31061B.qpcact"
+
+RESERVEDAREACFG	= ".\ReservedArea.cfg"
+MASKOPTIONCFG	= ".\MaskOption.cfg"
+INITIALTOOCFG	= ".\InitialValue.cfg"
+BININFOFILE		= "$(TOOLSDIR)\BinInfo\BinInfo.conf"
+
+#-------------------------------------------------------------------------
+# Assmble *.asm to *.obj
+#-------------------------------------------------------------------------
+".\RELEASE\STARTUP.OBJ" : ".\STARTUP.ASM" ".\GPL813X.INC" ".\SYS\MACRO.INC" ".\ALARM\ALARM.INC" ".\RTC\RTC.INC" ".\GXHTV4\GXHTV4.INC" ".\LCD\LCD_DISPLAY.INC" ".\KEY\KEY.INC" ".\I2C\D_I2C.INC" ".\RF\RF.INC"
+	$(ASM) $(ASMFLAG) -o ".\Release\STARTUP.OBJ" ".\Startup.asm"
+	$(ECHO)
+".\RELEASE\INT_VEC.OBJ" : ".\INT_VEC.ASM" ".\GPL813X.INC" ".\SYS\PROJECT.INC" ".\SYS\MACRO.INC" ".\KEY\KEY.INC" ".\LCD\LCD_DISPLAY.INC" ".\ALARM\ALARM.INC"
+	$(ASM) $(ASMFLAG) -o ".\Release\INT_VEC.OBJ" ".\Int_Vec.asm"
+	$(ECHO)
+".\RELEASE\RTC.OBJ" : ".\RTC\RTC.ASM" ".\SYS\MACRO.INC" ".\KEY\KEY.INC" ".\ALARM\ALARM.INC"
+	$(ASM) $(ASMFLAG) -o ".\Release\RTC.OBJ" ".\RTC\RTC.asm"
+	$(ECHO)
+".\RELEASE\KEY.OBJ" : ".\KEY\KEY.ASM" ".\GPL813X.INC" ".\SYS\MACRO.INC" ".\RTC\RTC.INC" ".\SYS\PROJECT.INC" ".\ALARM\ALARM.INC" ".\LCD\LCD_DISPLAY.INC" ".\RF\RF.INC"
+	$(ASM) $(ASMFLAG) -o ".\Release\KEY.OBJ" ".\KEY\KEY.asm"
+	$(ECHO)
+".\RELEASE\LCD_DISPLAY.OBJ" : ".\LCD\LCD_DISPLAY.ASM" ".\GPL813X.INC" ".\SYS\MACRO.INC" ".\KEY\KEY.INC" ".\RTC\RTC.INC" ".\ALARM\ALARM.INC" ".\GXHTV4\GXHTV4.INC" ".\RF\RF.INC" ".\LCD\LCD_DISPLAY.TAB"
+	$(ASM) $(ASMFLAG) -o ".\Release\LCD_DISPLAY.OBJ" ".\LCD\LCD_Display.asm"
+	$(ECHO)
+".\RELEASE\GXHTV4.OBJ" : ".\GXHTV4\GXHTV4.ASM"
+	$(ASM) $(ASMFLAG) -o ".\Release\GXHTV4.OBJ" ".\GXHTV4\GXHTV4.asm"
+	$(ECHO)
+".\RELEASE\D_I2C.OBJ" : ".\I2C\D_I2C.ASM" ".\GPL813X.INC"
+	$(ASM) $(ASMFLAG) -o ".\Release\D_I2C.OBJ" ".\I2C\D_I2C.asm"
+	$(ECHO)
+".\RELEASE\ALARM.OBJ" : ".\ALARM\ALARM.ASM" ".\GPL813X.INC" ".\SYS\PROJECT.INC" ".\SYS\MACRO.INC" ".\KEY\KEY.INC" ".\RTC\RTC.INC" ".\LCD\LCD_DISPLAY.INC" ".\RF\RF.INC" ".\GXHTV4\GXHTV4.INC"
+	$(ASM) $(ASMFLAG) -o ".\Release\ALARM.OBJ" ".\Alarm\Alarm.asm"
+	$(ECHO)
+".\RELEASE\RF.OBJ" : ".\RF\RF.ASM" ".\GPL813X.INC" ".\SYS\MACRO.INC" ".\RTC\RTC.INC"
+	$(ASM) $(ASMFLAG) -o ".\Release\RF.OBJ" ".\RF\RF.asm"
+	$(ECHO)
+
+
+.SUFFIXES : .asm .obj
+
+.PHONY : all
+all : preBuild outputdir resconvert tablegen compileobj asmirpcheck preLink linker postLink maskoptions reporter postBuild
+
+.PHONY : clean
+clean :
+	-if not exist "${IMDIR}\$(NULL)" ${MAKEDIR} "${IMDIR}"
+	-if not exist "${OUTPUTDIR}\$(NULL)" ${MAKEDIR} "${OUTPUTDIR}"
+	$(RM)  $(BINFILE)
+	$(RM)  $(OUTPUTFILES)
+	$(ECHO)
+	
+.PHONY : build	
+build: 	build_init all
+	
+.PHONY : rebuild	
+rebuild: clean rebuild_init all	
+	
+build_init:	
+	$(INITIALTOOL) -R $(RESDB) -P $(PROGDB) -F $(INITIALTOOCFG) -B $(CHIPINFO) -T Asm -A Reflash
+rebuild_init:
+	$(INITIALTOOL) -R $(RESDB) -P $(PROGDB) -F $(INITIALTOOCFG) -B $(CHIPINFO) -T Asm -A Create
+	
+outputdir:
+	if not exist "$(OUTPUTDIR)\$(NULL)" mkdir "$(OUTPUTDIR)"
+	if not exist "$(IMDIR)\$(NULL)" mkdir "$(IMDIR)"
+	$(ECHO)
+	
+.PHONY : resconvert
+resconvert : 
+	$(RESERVEDAREA) -D $(RESDB) -R $(RESERVEDAREACFG)
+	$(ECHO)
+	$(RESCONV) -R $(RESDB) -P $(PROGDB) $(ASMCONF)  -O "$(PROJECTDIR)\\$(IMDIR)" -B $(BODYSERIES) $(INCLUDEPATH) -CP "$(PROJECTDIR)\resource.cfp" -H No
+	$(ECHO)
+
+tablegen :
+	$(PROGDATAGEN) -T GP_ASM -R $(RESDB) -S CODE -O "$(IMDIR)"
+	$(ECHO)
+	$(ALLOCATOR) -R $(RESDB) -C $(CHIPINFO)
+	$(ECHO)
+
+.PHONY : compileobj
+compileobj : $(OBJFILES) rmbinfile	
+ifdef OVERWRITELIK
+	$(LINKSCRIPTGEN) -I ".\LinkerScriptParam"
+	$(ECHO)
+endif
+
+asmirpcheck :
+	$(ASMIRPCHECK) $(ASMIRPCHECKFLG)
+	
+rmbinfile : 
+	$(RM) $(BINFILE)
+	$(ECHO)
+	
+linker :
+	$(LINK) ".\_Prog_.lik"
+	$(ECHO)
+
+maskoptions:	
+	$(MASKOPTION) -i $(BINFILE) -o $(BINFILE) -ePDFrpt "$(CMSFILE)" -bf $(CHIPINFO) -m $(MASKOPTIONCFG) -bi $(BININFOFILE)
+	$(ECHO)
+	$(PDFCMSHEET) -T "$(PDFCONFIRMSHEETTEMPLATE)" -P "$(CMSFILE)" -O "$(PDFCMFILE)"
+	@echo =
+	$(ECHO)	
+	
+.PHONY : reporter
+reporter : 
+	$(REPORT) -Raqe $(RESDB) -Pfst $(PROGDB) -O "$(OUTPUTDIR)\IT31061B_Report" -H -M "$(OUTPUTDIR)\IT31061B.map" -F $(CHIPINFO)
+	$(ECHO)
+	
+preBuild:
+	@echo Pre-Build Event:
+	
+	$(ECHO)
+preLink:
+	@echo Pre-Link Event:
+	
+	$(ECHO)
+postLink:
+	@echo Post-Link Event:
+	
+	$(ECHO)
+postBuild:
+	@echo Post-Build Event:
+	
+	$(ECHO)
+	

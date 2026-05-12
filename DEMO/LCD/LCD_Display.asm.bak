@@ -1,0 +1,1020 @@
+;==========================================
+.SYNTAX 6502
+.LINKLIST
+.SYMBOLS
+;==========================================
+; Include file area
+;==========================================
+.INCLUDE 	GPL813x.inc
+.INCLUDE	sys\Macro.inc
+.INCLUDE	key\Key.inc
+.INCLUDE	rtc\RTC.inc
+.INCLUDE	Alarm\Alarm.inc
+.INCLUDE	RFC\RFC.inc
+;==========================================
+; External declare area
+;==========================================
+;==========================================
+; Public declare area
+;==========================================
+.PUBLIC			F_Display
+		
+;------------------------------------------
+;.PUBLIC			R_TempBuf
+;==========================================
+;Variable RAM declare area
+;========================================== 
+.PAGE0
+R_Temp0			ds		1
+R_Temp1			ds		1
+R_Temp2			ds		1
+R_Temp3			ds		1
+R_Temp4			ds		1
+R_DisplayTemp	ds		1
+;==============================================================================
+.CODE
+;==============================================================================
+F_Display:                    ;	
+
+F_DispClock:
+
+		LDA		R_TimeFlashSet
+		BEQ		$+5
+		JMP		F_EnableSetState
+		%btst	R_TimeStatus,AddOthers,?Update_AllDisp
+		%btsf	R_TimeStatus,HalfSecToggle,?Disp_COL		
+		LDX		#T_COL1
+		JSR		F_NoDisplayBit	
+		JSR		F_NoDispSn
+		JSR		F_FlashAlmingOff
+		RTS
+		
+	?Update_AllDisp:
+		JSR		F_ClearIncStatus     ;清标志		
+		JSR		F_Display_Hour
+		JSR		F_Display_Minute     ;显示分钟
+		JSR		F_Display_Month
+		JSR		F_Display_Day
+		JSR		F_Display_Week
+		JSR		F_DisplayAlmHour
+		JSR		F_DisplayAlmMinute
+		JSR		F_DisplayAlmDay	
+		JSR		F_DisplayAlmOnOff
+		JSR		F_DispAlmCol
+		JSR		F_DisplayTemp
+	?Disp_COL:	
+		LDX		#T_COL1
+		JSR		F_DisplayBit
+		LDX		#T_ALM
+		JSR		F_DisplayBit
+		JSR		F_FlashAlmingOn
+		RTS
+;==========================================================	
+F_EnableSetState:
+		LDA		R_SetMode
+		CMP		#D_SetClk
+		BNE		$+5
+		JMP		Flash_DispTimeSet
+		JMP		Flash_DispAlarmSet
+;==========================================================
+Flash_DispTimeSet:				;设置时间的闪动
+		%btst	R_KeyFlag,D_EnableFastAdd,?Disp_AllTimeValue
+		%btsf	R_TimeStatus,HalfSecToggle,?Disp_AllTimeValue
+		LDA		R_TimeFlashSet
+		CMP		#D_SetYear
+		BNE		$+5
+		JMP		F_NoDisplay_Year
+		CMP		#D_SetMonth	
+		BNE		$+5
+		JMP		F_NoDisplay_Month
+		CMP		#D_SetDate
+		BNE		$+5
+		JMP		F_NoDisplay_Day
+		CMP		#D_Set12H	
+		BNE		$+5
+		JMP		F_NoDisplay_1224H		
+		CMP		#D_SetHour
+		BNE		$+5
+		JMP		F_NoDisplay_Hour
+		CMP		#D_SetMinute
+		BNE		$+5
+		JMP		F_NoDisplay_Minute
+		RTS
+?Disp_AllTimeValue:		
+		JSR		F_ClearIncStatus
+		LDA		R_TimeFlashSet
+		CMP		#D_SetYear
+		BNE		$+5
+		JMP		F_Display_Year
+		CMP		#D_Set12H	
+		BNE		$+5
+		JMP		F_Display_1224H
+		JSR		F_Display_Hour
+		JSR		F_Display_Minute
+		JSR		F_Display_Month
+		JSR		F_Display_Day
+		JSR		F_Display_Week
+		LDX		#T_COL1
+		JSR		F_DisplayBit
+		RTS
+		
+;==========================================================	
+Flash_DispAlarmSet:
+		NOP
+		%btst	R_KeyFlag,D_EnableFastAdd,?Disp_AllAlarmValue
+		%btsf	R_TimeStatus,HalfSecToggle,?Disp_AllAlarmValue
+		LDA		R_TimeFlashSet
+		CMP		#D_SetAlmHour
+		BNE		$+5
+		JMP		F_NoDisplayAlmHour
+		CMP		#D_SetAlmMinute	
+		BNE		$+5
+		JMP		F_NoDisplayAlmMinute
+		CMP		#D_SetAlmDay
+		BNE		$+5
+		JMP		F_NoDisplayAlmDay
+		RTS
+?Disp_AllAlarmValue:		
+		JSR		F_ClearIncStatus
+		JSR		F_DisplayAlmHour
+		JSR		F_DisplayAlmMinute
+		JSR		F_DisplayAlmDay	
+		RTS
+;==========================================================
+F_Display_1224H:				;12/24小时制式显示
+			LDX		#0EH
+			LDY		#02
+			JSR		F_DispTheSevenSegChar
+			LDX		#0DH
+			LDY		#03
+			JSR		F_DispTheSevenSegChar
+			LDX		#T_COL1
+			JSR		F_NoDisplayBit
+			
+			LDA		R_OtherFlag
+			AND		#D_12Mode
+			BNE		?L_Disp12H
+		?L_Disp24H:
+			LDX		#02
+			LDY		#00
+			JSR		F_DispTheSevenSegChar
+			LDX		#04
+			LDY		#01
+			JSR		F_DispTheSevenSegChar
+			RTS
+		?L_Disp12H:
+			LDX		#01
+			LDY		#00
+			JSR		F_DispTheSevenSegChar
+			LDX		#02
+			LDY		#01
+			JSR		F_DispTheSevenSegChar
+			RTS
+;----------------------------------
+F_NoDisplay_1224H:
+			JSR		F_NoDisplay_Hour
+			RTS
+;==========================================================		
+F_Display_Hour:								;显示时钟小时
+			LDA		R_OtherFlag
+			AND		#D_12Mode
+			BEQ		$+5
+			JMP		L_Disp12H
+L_Disp24H:
+			JSR		F_NoDispClkAMPM
+			lda		RTC+0
+			JSR		F_4RORA
+			AND		#0FH
+			BNE		?L_DispHBit
+			LDA		#0AH
+		?L_DispHBit:
+			TAX
+			LDY		#00
+			JSR		F_DispTheSevenSegChar
+
+	?L_DispHL:
+			LDA		RTC+0
+			AND		#0FH
+			TAX
+			LDY		#01
+			JSR		F_DispTheSevenSegChar
+			RTS
+			
+L_Disp12H:
+			JSR		F_DispClkAMPM
+			LDA		RTC+0
+			TAX
+			LDA		T_24To12Table,x
+			STA		R_DisplayTemp
+			JSR		F_4RORA
+			AND		#0FH
+			BNE		?L_DispHBit
+			LDA		#0AH
+		?L_DispHBit:
+			TAX
+			LDY		#00
+			JSR		F_DispTheSevenSegChar
+			LDA		R_DisplayTemp
+			AND		#0FH
+			TAX
+			LDY		#01
+			JSR		F_DispTheSevenSegChar
+			RTS
+T_24To12Table:
+		DB 12H,01H,02H,03H,04H,05H,06H,07H,08H,09H,00H,00H,00H,00H,00H,00H,10H,11H	
+ 		DB 12H,01H,02H,03H,04H,05H,06H,07H,00H,00H,00H,00H,00H,00H,08H,09H,10H,11H			
+;====================
+F_NoDisplay_Hour:	
+		LDX		#0AH
+		LDY		#00                 
+		JSR		F_DispTheSevenSegChar    ;
+		LDX		#0AH
+		LDY		#01                 
+		JSR		F_DispTheSevenSegChar
+		RTS
+;----------------------------------------------------------
+F_DispClkAMPM:						;时钟的AMPM判断
+		LDA		RTC+0
+		CMP		#12H
+		BCS		?L_DispPM
+	?L_DispAM:
+		LDX		#T_AM1
+		JSR		F_DisplayBit
+		LDX		#T_PM1
+		JSR		F_NoDisplayBit
+		RTS
+	?L_DispPM:
+		NOP
+		LDX		#T_AM1
+		JSR		F_NoDisplayBit
+		LDX		#T_PM1
+		JSR		F_DisplayBit
+		RTS
+;--------------
+F_NoDispClkAMPM:
+		LDX		#T_AM1
+		JSR		F_NoDisplayBit
+		LDX		#T_PM1
+		JSR		F_NoDisplayBit
+		RTS
+;========================================================== 		
+F_Display_Minute:                         ;显示时钟分钟 
+		LDA     RTC+1
+		JSR		F_4RORA
+		AND		#0FH
+		TAX			    ;显示的字符
+		LDY		#02                 
+		JSR		F_DispTheSevenSegChar    ;显示分钟的高位;                
+   	    LDA	    RTC+1
+        AND		#0FH
+		TAX			    ;显示的字符
+		LDY		#03                       ;显示分钟的低位   ;
+		JSR		F_DispTheSevenSegChar
+		RTS
+;----------------------------------------------------------
+F_NoDisplay_Minute:
+		LDX		#0AH
+		LDY		#02                 
+		JSR		F_DispTheSevenSegChar    ;	
+		LDX		#0AH
+		LDY		#03                 
+		JMP		F_DispTheSevenSegChar    ;
+;==========================================================	
+F_4RORA:
+		CLC
+		ROR		A
+		ROR		A
+		ROR		A
+		ROR		A
+		RTS
+;==========================================================
+;=====================================      
+;=====================================
+	
+F_Display_Year:                          ;显示年
+		LDX		#0x02
+		LDY		#00                  
+		JSR		F_DispTheSevenSegChar    ;年的千位
+		LDX		#0x00
+		LDY		#01                  
+		JSR		F_DispTheSevenSegChar    ;年的百位
+		
+		LDA     DATE+0              ;00-99 (Year)		    	    	    
+		JSR		F_4RORA
+		AND		#0FH
+		TAX			    ;显示的字符
+		LDY		#02                  
+		JSR		F_DispTheSevenSegChar    ;年的十侠
+		
+		LDA	    DATE+0
+		AND		#0FH
+		TAX			    ;显示的字符
+		LDY		#03      
+		JMP		F_DispTheSevenSegChar   ;年的个位
+F_NoDisplay_Year:
+		JSR		F_NoDisplay_Hour
+		JSR		F_NoDisplay_Minute
+		LDX		#T_COL1
+		JSR		F_NoDisplayBit
+		RTS
+		
+;;=====================================
+F_Display_Month:	
+			
+		LDA     DATE+1	            ;Month
+		AND		#0FH
+		TAX 
+		INX
+		LDA		T_BCDTable,X 
+        STA     R_DisplayTemp
+		AND		#10H
+		BEQ		NoDisplayMonthH
+		ldx		#T_MONH
+		JSR		F_DisplayBit
+		JMP		MonthLowDisplay	
+		
+	NoDisplayMonthH:
+		ldx		#T_MONH
+		JSR		F_NoDisplayBit
+			
+    MonthLowDisplay:            ;显示月份的低位
+        LDA	    R_DisplayTemp
+		AND		#0FH
+		TAX			    ;显示的字符
+		LDY		#04                      ;显示月份的低位   ;
+		JSR		F_DispTheSevenSegChar
+		RTS
+;--------------------------------------------
+F_NoDisplay_Month:
+		LDX		#T_MONH
+		JSR		F_NoDisplayBit
+		LDX		#0AH
+		LDY		#04                  
+		JSR		F_DispTheSevenSegChar    ;
+		RTS
+		
+T_BCDTable:
+ DB 00H,01H,02H,03H,04H,05H,06H,07H,08H,09H 	
+ DB 10H,11H,12H,13H,14H,15H,16H,17H,18H,19H		
+		
+;;================================================================
+F_Display_Day:		
+		LDA		DATE+2					;01 - 31 (Date)	
+		JSR		F_4RORA
+		AND		#0FH
+		BNE		?DateHighDisplay
+		LDA		#0AH
+	?DateHighDisplay:	
+		TAX								;显示的字符	
+		LDY		#05H
+		JSR		F_DispTheSevenSegChar
+;     
+	?DateLowDisplay:
+   	    LDA	    DATE+2
+        AND		#0FH
+		TAX			    ;显示的字符
+		LDY		#06                      ;显示日期的低位   ;
+		JSR		F_DispTheSevenSegChar
+		RTS
+;-----------------------------------------------		
+F_NoDisplay_Day:
+		LDX		#0AH
+		LDY		#05                 
+		JSR		F_DispTheSevenSegChar    ;	
+		LDX		#0AH
+		LDY		#06                 
+		JMP		F_DispTheSevenSegChar    ;
+
+		                            
+;==========================================================
+F_DisplayAlmHour:					;显示闹钟 小时
+			LDA		R_OtherFlag
+			AND		#D_12Mode
+			BEQ		$+5
+			JMP		L_DispAlm12H
+L_DispAlm24H:
+			JSR		F_NoDispAlmAMPM
+			JSR		F_CheckAlmGroup
+			lda		R_AlarmHour,x
+			JSR		F_4RORA
+			AND		#0FH
+			BNE		?L_DispHBit
+			LDA		#0AH
+		?L_DispHBit:
+			TAX
+			LDY		#10
+			JSR		F_DispTheSevenSegChar
+	?L_DispHL:
+			JSR		F_CheckAlmGroup
+			lda		R_AlarmHour,x
+			AND		#0FH
+			TAX
+			LDY		#11
+			JSR		F_DispTheSevenSegChar
+			RTS			
+L_DispAlm12H:
+			JSR		F_DispAlmAMPM
+			JSR		F_CheckAlmGroup
+			lda		R_AlarmHour,x
+			TAX
+			LDA		T_24To12Table,x
+			STA		R_DisplayTemp
+			JSR		F_4RORA
+			AND		#0FH
+			BNE		?L_DispHBit
+			LDA		#0FH
+		?L_DispHBit:
+			TAX
+			LDY		#10
+			JSR		F_DispTheSevenSegChar
+			LDA		R_DisplayTemp
+			AND		#0FH
+			TAX
+			LDY		#11
+			JSR		F_DispTheSevenSegChar
+			RTS			
+;====================
+F_NoDisplayAlmHour:	
+		LDX		#0AH
+		LDY		#10                 
+		JSR		F_DispTheSevenSegChar    ;
+		LDX		#0AH
+		LDY		#11                 
+		JSR		F_DispTheSevenSegChar
+		RTS
+;----------------------------------------------------------
+F_DispAlmAMPM:
+		JSR		F_CheckAlmGroup
+		lda		R_AlarmHour,x
+		CMP		#12H
+		BCS		?L_DispPM
+	?L_DispAM:
+		LDX		#T_AM2
+		JSR		F_DisplayBit
+		LDX		#T_PM2
+		JSR		F_NoDisplayBit
+		RTS
+	?L_DispPM:
+		LDX		#T_AM2
+		JSR		F_NoDisplayBit
+		LDX		#T_PM2
+		JSR		F_DisplayBit
+		RTS
+;--------------
+F_NoDispAlmAMPM:
+		LDX		#T_AM2
+		JSR		F_NoDisplayBit
+		LDX		#T_PM2
+		JSR		F_NoDisplayBit
+		RTS
+;========================================================== 		
+F_DisplayAlmMinute:                         ;显示闹钟分钟 
+		JSR		F_CheckAlmGroup
+		LDA     R_AlarmMin,x
+		JSR		F_4RORA
+		AND		#0FH
+		TAX			    ;显示的字符
+		LDY		#12                 
+		JSR		F_DispTheSevenSegChar    ;显示分钟的高位;                
+		JSR		F_CheckAlmGroup
+		LDA     R_AlarmMin,x
+        AND		#0FH
+		TAX			    ;显示的字符
+		LDY		#13                       ;显示分钟的低位   ;
+		JSR		F_DispTheSevenSegChar
+		RTS
+;----------------------------------------------------------
+F_NoDisplayAlmMinute:
+		LDX		#0AH
+		LDY		#12                 
+		JSR		F_DispTheSevenSegChar    ;	
+		LDX		#0AH
+		LDY		#13                 
+		JMP		F_DispTheSevenSegChar    ;
+;----------------------------------------------------------
+F_DispAlmCol:							;公共点显示
+		LDX		#T_COL2
+		JSR		F_DisplayBit
+		LDX		#T_COM
+		JSR		F_DisplayBit
+		RTS
+;----------------------------------------------------------
+F_NoDispSn:								;贪睡时显示
+		LDA		R_KeyFlag
+		AND		#D_SN
+		BNE		?L_NoDispSnIcon
+		RTS
+	?L_NoDispSnIcon:
+		LDX		#T_ALM
+		JSR		F_NoDisplayBit
+		RTS
+;----------------------------------------------------------
+F_FlashAlmingOff:						;响闹时闪烁不显示部分
+		LDA		R_KeyFlag
+		AND		#D_Alarming
+		BNE		$+3
+		RTS
+	?L_NoDispAlm:
+		LDA		R_AlmingG
+		BEQ		?L_NoAlmG1
+		CMP		#01H
+		BEQ		?L_NoAlmG2
+		CMP		#02H
+		BEQ		?L_NoAlmG3
+	?L_NoAlmG3:
+		LDX		#T_A3
+		JSR		F_NoDisplayBit
+		RTS
+	?L_NoAlmG2:
+		LDX		#T_A2
+		JSR		F_NoDisplayBit
+		RTS
+	?L_NoAlmG1:
+		LDX		#T_A1
+		JSR		F_NoDisplayBit
+		RTS	
+;----------------------------------------------------------
+F_FlashAlmingOn:
+		LDA		R_KeyFlag
+		AND		#D_Alarming
+		BNE		$+3
+		RTS
+	?L_DispAlm:
+		LDA		R_AlmingG
+		BEQ		?L_AlmG1
+		CMP		#01H
+		BEQ		?L_AlmG2
+		CMP		#02H
+		BEQ		?L_AlmG3
+	?L_AlmG3:
+		LDX		#T_A3
+		JSR		F_DisplayBit
+		RTS
+	?L_AlmG2:
+		LDX		#T_A2
+		JSR		F_DisplayBit
+		RTS
+	?L_AlmG1:
+		LDX		#T_A1
+		JSR		F_DisplayBit
+		RTS
+;----------------------------------------------------------
+F_DisplayAlmDay:						;显示当前组闹钟的天数
+		JSR		F_NoDisplayAlmDay
+		JSR		F_CheckAlmGroup
+		LDA		R_DispAlmDay,x
+		CMP		#01H
+		BEQ		?L_OneDay
+		CMP		#02H
+		BEQ		?L_TwoDay
+	?L_EveryDay:
+		LDX		#T_EVE
+		JSR		F_DisplayBit
+		RTS
+	?L_OneDay:
+		LDX		#T_ONE
+		JSR		F_DisplayBit
+		RTS
+	?L_TwoDay:
+		LDX		#T_TWO
+		JSR		F_DisplayBit
+		RTS
+
+		
+;------------------------------------
+F_NoDisplayAlmDay:
+		LDX		#T_EVE
+		JSR		F_NoDisplayBit
+		LDX		#T_ONE
+		JSR		F_NoDisplayBit
+		LDX		#T_TWO
+		JSR		F_NoDisplayBit
+		RTS
+;------------------------------------	;显示当前闹钟的打开/关闭
+F_DisplayAlmOnOff:
+		JSR		F_DisplayAlmOff
+		LDA		R_AlarmGroup
+		CMP		#D_AlmG1
+		BEQ		?L_AlmG1Onoff
+		CMP		#D_AlmG2
+		BEQ		?L_AlmG2Onoff
+	?L_AlmG3Onoff:		;---------------------
+		LDA		R_AlarmOnOff
+		AND		#D_Alarm3On
+		BEQ		?L_Alm3Off
+	?L_Alm3On:
+		LDX		#T_A3
+		JMP		F_DisplayBit
+	?L_Alm3Off:
+		LDX		#T_A3
+		JMP		F_NoDisplayBit
+	?L_AlmG2Onoff:		;---------------------
+		LDA		R_AlarmOnOff
+		AND		#D_Alarm2On
+		BEQ		?L_Alm2Off
+	?L_Alm2On:
+		LDX		#T_A2
+		JMP		F_DisplayBit
+	?L_Alm2Off:
+		LDX		#T_A2
+		JMP		F_NoDisplayBit
+	?L_AlmG1Onoff:		;---------------------
+		LDA		R_AlarmOnOff
+		AND		#D_Alarm1On
+		BEQ		?L_Alm1Off
+	?L_Alm1On:
+		LDX		#T_A1
+		JMP		F_DisplayBit
+	?L_Alm1Off:
+		LDX		#T_A1
+		JMP		F_NoDisplayBit
+F_DisplayAlmOff:
+		LDX		#T_A1
+		JSR		F_NoDisplayBit
+		LDX		#T_A2
+		JSR		F_NoDisplayBit
+		LDX		#T_A3
+		JMP		F_NoDisplayBit
+;==========================================================
+F_Display_Week:                ;星期显示  
+		NOP
+		LDA		DATE+1
+		AND		#70H
+		JSR		F_4RORA
+		ADC		#10H
+		TAX
+		LDY		#14
+		JSR		F_DispTheSevenSegChar
+		RTS
+;==========================================================
+F_DisplayTemp:
+		NOP
+		LDA		RB_TempDataBCD+1
+		AND		#F0H
+		BEQ		?L_Next1
+		LDA		RB_TempDataBCD+1
+		AND		#0FH
+		BEQ		?L_Next1
+		JMP		L_DisplayLow
+		
+	?L_Next1:
+		LDA		RB_TempDataBCD+1
+		AND		#F0H
+		BEQ		?L_DispPositValue
+		LDX		#0FH
+		JMP		?L_NoDispTempH
+	?L_DispPositValue:
+		LDA		RB_TempDataBCD+1
+		AND		#0FH
+		CMP		#05H
+		BCC		$+5
+		JMP		L_DisplayHigh
+	?L_DispNormal:
+		LDA		RB_TempDataBCD+1
+		AND		#0FH
+		BNE		?L_NoDispTempH
+		LDA		#0AH
+	?L_NoDispTempH:
+		TAX		
+		LDY		#07
+		JSR		F_DispTheSevenSegChar			;显示温度十位
+	
+		LDA		RB_TempDataBCD
+		JSR		F_4RORA
+		AND		#0FH
+		TAX
+		LDY		#08
+		JSR		F_DispTheSevenSegChar			;显示温度个位
+			
+		LDA		RB_TempDataBCD
+		AND		#0FH
+		TAX
+		LDY		#09
+		JSR		F_DispTheSevenSegChar			;显示温度小数位
+		RTS
+		
+;----------------------------------------------------------
+L_DisplayLow:
+		LDX		#0CH
+		LDY		#07H
+		JSR		F_DispTheSevenSegChar
+		LDX		#0CH
+		LDY		#08H
+		JSR		F_DispTheSevenSegChar
+		LDX		#0AH
+		LDY		#09H
+		JSR		F_DispTheSevenSegChar
+		RTS
+L_DisplayHigh:
+		LDX		#0EH
+		LDY		#07H
+		JSR		F_DispTheSevenSegChar
+		LDX		#0EH
+		LDY		#08H
+		JSR		F_DispTheSevenSegChar
+		LDX		#0AH
+		LDY		#09H
+		JSR		F_DispTheSevenSegChar
+		RTS		
+;==========================================================
+;----------------------------------------------------------
+;Name:	        ClrSRAM
+; Description:	Clear SRAM $80 ~ $FF
+;----------------------------------------------------------
+;F_ClrSRAM:	
+;		LDA		#.LOW.(C_SramAddrStart+2)
+;		STA		C_SramAddrStart
+;		LDA		#.HIGH.(C_SramAddrStart+2)
+;		STA		C_SramAddrStart+1
+;		
+;		LDX     #0
+;?L_FillLoop#:
+;        LDA     #0
+;		STA     (C_SramAddrStart,X)
+;		
+;		LDA     C_SramAddrStart+1
+;		CMP     #.HIGH.C_SramAddrEnd
+;		BCC     ?L_IncSramAddr#
+;		LDA     C_SramAddrStart
+;		CMP     #.LOW.C_SramAddrEnd
+;		BCS     ?L_End#
+;		
+;?L_IncSramAddr#:    ;Increase sram address
+;        INC     C_SramAddrStart
+;		BNE     ?L_FillLoop#
+;		INC     C_SramAddrStart+1
+;	    STA	    P_WDT_Flag_Clear     ;WatchDogClear  
+;        JMP     ?L_FillLoop#
+;?L_End#:
+;        LDA     #0
+;        STA     C_SramAddrStart
+;        STA     C_SramAddrStart+1		
+;	    RTS
+;==========================================================
+
+;-------------------------------------------
+;F_ClearAllDisplay:		
+;		LDX		#00H
+;		LDY		#00H
+;?L_ClrDpramLoop:
+;		LDA     #00H
+;		STA		$3E00,X
+;		INY
+;		CPY		#04H
+;		BNE		?L_ClrDpramLoopI
+;		LDY		#00H
+;		TXA
+;		CLC
+;		ADC		#0CH
+;		TAX
+;?L_ClrDpramLoopI:		
+;		INX
+;		CPX		#80H
+;		BNE		?L_ClrDpramLoop
+;		RTS
+;=========================================== 
+			;显示七段码
+;===========================================
+F_DispTheSevenSegChar:
+		LDA	T_SevenSegCharBitMapTab,X
+	F_DisplaySevenIcon:					;取得显示点的序列的起始地址
+		STA	R_Temp1								;R_Temp1存放字符的位映射
+		TYA
+		ASL	A		; A<128
+		TAX
+		LDA	T_SevenSegCharPosIndexTab,X
+		STA	R_Temp3
+		LDA	T_SevenSegCharPosIndexTab+1,X	;取字符的显示映射表的地址
+		STA	R_Temp4
+	;------
+	;dot start addr:R_Temp3,R_Temp4. disp byte:R_Temp1.
+	;F_DispByte:
+		LDA	#7		
+		STA	R_Temp2
+	L_DispByte_1:
+		LDX	#0
+		LDA	(R_Temp3,X)
+		STA	R_Temp0
+		INC	R_Temp3
+		BNE	L_DispByte_1_0
+		INC	R_Temp4
+	L_DispByte_1_0:
+		LDA	(R_Temp3,X)
+		INC	R_Temp3
+		BNE	L_DispByte_1_1
+		INC	R_Temp4
+	L_DispByte_1_1:
+		LDX	R_Temp0
+		ROR	R_Temp1
+		BCS	L_DispByte_1_1_1
+	L_DispByte_1_1_0:
+		STA	R_Temp0
+		LDA	$3E00,X
+		ORA	R_Temp0
+		EOR	R_Temp0
+		STA	$3E00,X
+		DEC	R_Temp2
+		BNE	L_DispByte_1
+		RTS
+	L_DispByte_1_1_1:
+		STA	R_Temp0
+		LDA	$3E00,X
+		ORA	R_Temp0
+		STA	$3E00,X			
+		DEC	R_Temp2
+		BNE	L_DispByte_1
+		RTS
+;=============================
+;input x
+;=============================
+F_DisplayBit:
+		LDA	T_ICON,x
+		STA	R_Temp0
+		inx
+		LDA	T_ICON,x
+		STA	R_Temp1
+		LDX	R_Temp0
+		LDA	$3E00,X
+		ORA	R_Temp1
+		STA	$3E00,X			
+		RTS
+;=============================
+;input x
+;=============================
+F_NoDisplayBit:
+		LDA	T_ICON,x
+		STA	R_Temp0
+		inx
+		LDA	T_ICON,x
+		EOR	#FFH
+		STA	R_Temp1
+		LDX	R_Temp0
+		LDA	$3E00,X
+		and	R_Temp1
+		STA	$3E00,X			
+		RTS		
+;==========================================
+; Constant define area
+;==========================================
+;LCD order
+;Pin1_pin18
+;c7~c0,s0~s9 (按照LCD图定义值来定义
+.if 1		;0, RealChip   1 ;LCD Ev.board
+;.IF	
+C_Com0		EQU	0x00			;com0
+C_Com1		EQU	0x10			;com1
+C_Com2		EQU	0x20			;com2
+C_Com3		EQU	0x30			;com3
+C_Com4		EQU	0x40			;com4
+C_Com5		EQU	0x50			;com5
+C_Com6		EQU	0x60			;com6
+C_Com7		EQU	0x70			;com7
+.else
+C_Com0		EQU	0x70			;com0
+C_Com1		EQU	0x60			;com1
+C_Com2		EQU	0x50			;com2
+C_Com3		EQU	0x40			;com3
+C_Com4		EQU	0x30			;com4
+C_Com5		EQU	0x20			;com5
+C_Com6		EQU	0x10			;com6
+C_Com7		EQU	0x00			;com7
+.endif
+Seg00		EQU	0
+Seg01		EQU	1
+Seg02		EQU	14
+Seg03		EQU	15
+Seg04		EQU	16
+Seg05		EQU	17
+Seg06		EQU	18
+Seg07		EQU	19
+Seg08		EQU	20
+
+
+C_S00		EQU	00000001B
+C_S01		EQU	00000010B
+C_S02		EQU	00000100B
+C_S03		EQU	00001000B
+C_S04		EQU	00010000B
+C_S05		EQU	00100000B
+C_S06		EQU	01000000B
+C_S07		EQU	10000000B
+C_S08		EQU	00000001B
+C_S09		EQU	00000010B
+C_S10		EQU	00000100B
+C_S11		EQU	00001000B
+C_S12		EQU	00010000B
+C_S13		EQU	00100000B
+C_S14		EQU	01000000B
+C_S15		EQU	10000000B
+C_S16		EQU	00000001B
+C_S17		EQU	00000010B
+C_S18		EQU	00000100B
+C_S19		EQU	00001000B
+C_S20		EQU	00010000B
+C_S21		EQU	00100000B
+C_S22		EQU	01000000B
+C_S23		EQU	10000000B
+C_S24		EQU	00000001B
+C_S25		EQU	00000010B
+C_S26		EQU	00000100B
+C_S27		EQU	00001000B
+C_S28		EQU	00010000B
+C_S29		EQU	00100000B
+C_S30		EQU	01000000B
+C_S31		EQU	10000000B
+
+C_Seg00		EQU	C_S00
+C_Seg01		EQU	C_S01
+C_Seg02		EQU	C_S14
+C_Seg03		EQU	C_S15
+C_Seg04		EQU	C_S16
+C_Seg05		EQU	C_S17
+C_Seg06		EQU	C_S18
+C_Seg07		EQU	C_S19
+C_Seg08		EQU	C_S20
+
+;==========================================================
+.CODE
+;------------------------------
+;C_NotDispThisDigital	EQU	0AH
+;==========================================================
+T_SevenSegCharPosIndexTab:
+	DW	T_Digit1DispTab   ;1		;D1
+	DW	T_Digit2DispTab   ;2		;D2
+	DW	T_Digit3DispTab   ;3		;D3
+	DW	T_Digit4DispTab   ;4		;D4
+
+;==========================================================
+T_SevenSegCharBitMapTab:
+;	       0,         1,       2,        3,        4
+	DB	00111111B,00000110B,01011011B,01001111B,01100110B
+;	       5,         6,       7,        8,        9
+	DB	01101101B,01111101B,00000111B,01111111B,01101111B
+;	       A,-空     B,-"V"    C,"L"      D'r'      E'H'      
+	DB	00000000B,00111110B,00111000B,01010000B,01110110b
+;		F;'-'  	10_Sun	 11_Mon		12_Tue  13-Wed		14-Thu	15-Fri		16-Sat
+	DB	01000000B,01000000B,00000001B,00000010B,00000100B,00001000B,00010000B,00100000B
+;---
+;format:byte index;mask bT_Digit1DispTabit
+; ================================
+T_Digit1DispTab:   ;;D1				Hour H
+	DB	C_Com0+Seg08/8,C_Seg08 ;a
+	DB	C_Com1+Seg08/8,C_Seg08 ;b
+	DB	C_Com2+Seg08/8,C_Seg08 ;c
+	DB	C_Com3+Seg08/8,C_Seg08 ;d 
+	DB	C_Com3+Seg09/8,C_Seg09 ;e
+	DB	C_Com2+Seg09/8,C_Seg09 ;f 
+	DB	C_Com2+Seg09/8,C_Seg09 ;g
+T_Digit1DispTabEnd:
+; ================================
+T_Digit2DispTab:   ;;D2				Hour L
+	DB	C_Com0+Seg06/8,C_Seg06 ;a
+	DB	C_Com1+Seg06/8,C_Seg06 ;b
+	DB	C_Com2+Seg06/8,C_Seg06 ;c
+	DB	C_Com3+Seg06/8,C_Seg06 ;d 
+	DB	C_Com3+Seg07/8,C_Seg07 ;e
+	DB	C_Com1+Seg07/8,C_Seg07 ;f 
+	DB	C_Com2+Seg07/8,C_Seg07 ;g
+T_Digit2DispTabEnd:					
+; ================================
+T_Digit3DispTab:   ;;D3				Minute	H
+	DB	C_Com0+Seg04/8,C_Seg04 ;a
+	DB	C_Com1+Seg04/8,C_Seg04 ;b
+	DB	C_Com2+Seg04/8,C_Seg04 ;c
+	DB	C_Com3+Seg04/8,C_Seg04 ;d 
+	DB	C_Com3+Seg05/8,C_Seg05 ;e
+	DB	C_Com1+Seg05/8,C_Seg05 ;f 
+	DB	C_Com2+Seg05/8,C_Seg05 ;g
+T_Digit3DispTabEnd:
+; ================================
+T_Digit4DispTab:   ;;D4				Minute L
+	DB	C_Com0+Seg02/8,C_Seg02 ;a
+	DB	C_Com1+Seg02/8,C_Seg02 ;b
+	DB	C_Com2+Seg02/8,C_Seg02 ;c
+	DB	C_Com3+Seg02/8,C_Seg02 ;d 
+	DB	C_Com3+Seg03/8,C_Seg03 ;e
+	DB	C_Com1+Seg03/8,C_Seg03 ;f 
+	DB	C_Com2+Seg03/8,C_Seg03 ;g
+T_Digit4DispTabEnd:
+; ================================	
+	
+	
+T_ICON:
+T_AM	EQU	$-T_ICON				;	时钟AM
+	DB	C_Com0+Seg07/8,C_Seg07 ;	
+T_PM	EQU	$-T_ICON				;	时钟PM
+	DB	C_Com0+Seg03/8,C_Seg03 ;
+T_COL	EQU	$-T_ICON				;	Colon
+	DB	C_Com0+Seg05/8,C_Seg05 ;
+	
+T_SET	EQU	$-T_ICON				;	SET
+	DB	C_Com1+Seg00/8,C_Seg00 ;
+	
+T_LOCK	EQU	$-T_ICON				;	LOCK
+	DB	C_Com2+Seg00/8,C_Seg00 ;
+	
+T_CLK	EQU	$-T_ICON				;	CLOCK
+	DB	C_Com3+Seg00/8,C_Seg00 ;
+
+;*************************************************************************	
+.END  	

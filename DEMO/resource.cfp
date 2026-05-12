@@ -1,0 +1,54 @@
+[General]
+Version = 1.0.0.0
+
+[SPEECH]
+CPUViewGroupTableBHL = 0
+NeedResCount = 0
+CPUViewTableLinear = 0
+CPUViewTableBHL = 1
+ROMViewTable = 1
+GroupNumber = 0
+[SPEECH_GROUP1]
+CPUViewTableBName = "T_SPCH_B"
+CPUViewTableHName = "T_SPCH_H"
+CPUViewTableLName = "T_SPCH_L"
+ROMViewTableName = "T_SPCH"
+
+
+[MELODY]
+CPUViewGroupTableBHL = 0
+NeedResCount = 0
+CPUViewTableLinear = 0
+CPUViewTableBHL = 1
+GroupNumber = 0
+[MELODY_GROUP1]
+CPUViewTableBName = "T_SONG_B"
+CPUViewTableHName = "T_SONG_H"
+CPUViewTableLName = "T_SONG_L"
+
+
+[IMAGE]
+CPUViewGroupTableBHL = 0
+NeedResCount = 0
+CPUViewTableLinear = 0
+CPUViewTableBHL = 1
+GroupNumber = 0
+[IMAGE_GROUP1]
+CPUViewTableBName = "T_BMP_B"
+CPUViewTableHName = "T_BMP_H"
+CPUViewTableLName = "T_BMP_L"
+
+
+[DATA]
+CPUViewGroupTableBHL = 0
+NeedResCount = 0
+CPUViewTableLinear = 0
+CPUViewTableBHL = 1
+ROMViewTable = 0
+GroupNumber = 0
+[DATA_GROUP1]
+CPUViewTableBName = "T_DATA_B"
+CPUViewTableHName = "T_DATA_H"
+CPUViewTableLName = "T_DATA_L"
+
+

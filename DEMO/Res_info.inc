@@ -1,0 +1,2 @@
+; Resource Info Assembler File
+

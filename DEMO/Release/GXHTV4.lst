@@ -1,0 +1,638 @@
+        Generalplus 6502 Assembler - Version 1.7.1.0  
+              Listing File Has Been Relocated
+
+     1                              ;==================================================================================
+     2                              ; The information contained herein is the exclusive property of
+     3                              ; Generalplus Technology Co. And shall not be distributed, reproduced,
+     4                              ; or disclosed in whole in part without prior written permission.
+     5                              ;       (C) COPYRIGHT 2017   Generalplus TECHNOLOGY CO.                            
+     6                              ;                   ALL RIGHTS RESERVED
+     7                              ; The entire notice above must be reproduced on all authorized copies.
+     8                              ;==================================================================================
+     9                              ;==================================================================================
+    10                              ; Name                  : GXHTV4.asm
+    11                              ; Applied Body          : GPL813X
+    12                              ; Programmer            : 
+    13                              ; Description           : Interrupt vector declare and service routine
+    14                              ; History version       : 
+    15                              ;==================================================================================
+    16                              
+    17                              ;==========================================
+    18                              ; Compiler parameter define
+    19                              ;==========================================
+    20                              .SYNTAX 6502
+    21                              .LINKLIST
+    22                              .SYMBOLS
+    23                              
+    24                              ;==========================================
+    25                              ; Constant define area
+    26                              ;==========================================
+    27                              
+    28                              
+    29                              
+    30                              ;==========================================
+    31                              ; Include file area
+    32                              ;==========================================
+    33                              
+    34                              
+    35                              
+    36                              ;==========================================
+    37                              ; External declare area
+    38                              ;==========================================
+    39                              .EXTERN		F_IIC_start
+    40                              .EXTERN		F_IIC_stop
+    41                              .EXTERN		F_IIC_Set8bit
+    42                              .EXTERN		F_RACK
+    43                              .EXTERN		F_I2C_ReadData
+    44                              .EXTERN		R_SaveData
+    45                              
+    46                              ;==========================================
+    47                              ; Public declare area
+    48                              ;==========================================16进制数==============================
+    49                              .PUBLIC		TEMP_INTEGAH
+    50                              .PUBLIC		TEMP_INTEGAL
+    51                              .PUBLIC		HUM
+    52                              .PUBLIC		F_ReadGXHTV4Data
+    53                              .PUBLIC		F_CAL_HEX_BCD2
+    54                              .PUBLIC		F_CHANGE_CF
+    55                              .PUBLIC		R_TempFlag
+    56                              .PUBLIC		OUT_H
+    57                              .PUBLIC		OUT_M
+    58                              .PUBLIC		OUT_L
+    59                              .PUBLIC		X_M
+    60                              .PUBLIC		X_L
+    61                              ;==========================================
+    62                              ;Variable RAM declare area
+    63                              ;==========================================
+    64 000000A1                     .PAGE0
+    65 000000A1 FF                  R_TempFlag		ds	1
+    66                              D_TempF			equ	0x01	;1 for 'F;  0 for 'C ，上电默认为F此Bit需置１
+    67                              D_TempError		equ	0x02	;温度出错标志
+    68                              D_TempFReg		equ	0x04	;TempF for -
+    69                              
+    70 000000A2 FF                  INDF0			ds	1
+    71 000000A3 FF                  TEMP_INTEGAH	ds	1
+    72 000000A4 FF                  TEMP_INTEGAL	ds	1
+    73 000000A5 FF                  HUM				ds	1
+    74                              
+    75 000000A6 FF                  CNT1	ds		1
+    76 000000A7 FF                  CNT2	ds		1
+    77 000000A8 FF                  CNT3	ds		1
+    78 000000A9 FF                  CNT4	ds		1
+    79 000000AA FF                  CNT5	ds		1
+    80 000000AB FF                  CNT6	ds		1
+    81 000000AC FF                  X_H		ds		1
+    82 000000AD FF                  X_1		ds		1
+    83 000000AE FF                  X_M		ds		1
+    84 000000AF FF                  X_L		ds		1
+    85 000000B0 FF                  Y_H		ds		1
+    86 000000B1 FF                  Y_L		ds		1
+    87 000000B2 FF                  OUT_L	ds		1
+    88 000000B3 FF                  OUT_M	ds		1
+    89 000000B4 FF                  OUT_1	ds		1
+    90 000000B5 FF                  OUT_H	ds		1
+    91                              
+    92                              
+    93                              
+    94                              ; F_IIC_Set8bit 发送的是完整 8bit 地址字节，不是 7bit 地址。
+    95                              ; 这里必须使用 0x44 左移一位后的写地址 0x88，
+    96                              ; 否则起始写命令阶段就会发错地址，设备不会 ACK。
+    97                              I2C_ID_GXHTV4		.equ				%10001000	; 8bit write address for 7bit slave 0x44
+    98                              I2C_WRITE_BIT		.equ				%00000000 
+    99                              I2C_READ_BIT		.equ				%00000001 
+   100                              
+   101                              ; GXHTV4 的测量命令是 1 byte，不是旧 SHT3x 风格的 16bit 0x2400。
+   102                              CMD_MEASURE_TH		.EQU				0x24
+   103                              
+   104                              
+   105                              
+   106                              ;==========================================
+   107                              ; code starting 
+   108                              ;==========================================
+   109 0000EBC1                     .CODE
+   110                              ;==========================================
+   111                              ; IRQ INTERRUPT SERVICE ROUTINE
+   112                              ;==========================================
+   113                              ;======================================================================
+   114                              ; 通过 D_I2C 底层发送转换命令，再读取 6 字节原始数据。
+   115                              ; 读取成功后更新 TEMP_INTEGAH/TEMP_INTEGAL/HUM。
+   116                              ;======================================================================
+   117 0000EBC1                     F_ReadGXHTV4Data:
+   118 0000EBC1 20 33 EF            		JSR			F_IIC_start
+   119 0000EBC4 A0 88               		LDY			#I2C_ID_GXHTV4
+   120 0000EBC6 20 59 EF            		JSR			F_IIC_Set8bit
+   121 0000EBC9 20 C4 EF            		JSR			F_RACK
+   122 0000EBCC 90 42               		BCC			F_ReadGXHTV4StopExit
+   123 0000EBCE A0 24               		LDY			#CMD_MEASURE_TH
+   124 0000EBD0 20 59 EF            		JSR			F_IIC_Set8bit
+   125 0000EBD3 20 C4 EF            		JSR			F_RACK
+   126 0000EBD6 90 38               		BCC			F_ReadGXHTV4StopExit
+   127 0000EBD8 20 46 EF            		JSR			F_IIC_stop
+   128                              
+   129 0000EBDB 20 14 EC            		JSR			F_GXHTV4WaitReady
+   130 0000EBDE 20 41 F0            		JSR			F_I2C_ReadData
+   131                              
+   132 0000EBE1 AD BE 00            		LDA			R_SaveData+0
+   133 0000EBE4 85 A9               		STA			CNT4
+   134 0000EBE6 AD BF 00            		LDA			R_SaveData+1
+   135 0000EBE9 85 AA               		STA			CNT5
+   136 0000EBEB AD C0 00            		LDA			R_SaveData+2
+   137 0000EBEE 85 AB               		STA			CNT6
+   138 0000EBF0 20 C1 EC            		JSR			F_crc_check_handle
+   139 0000EBF3 90 1E               		BCC			F_ReadGXHTV4Data_Exit
+   140 0000EBF5 20 2B EC            		JSR			CAL_IC_TEMP
+   141                              
+   142 0000EBF8 AD C1 00            		LDA			R_SaveData+3
+   143 0000EBFB 85 A9               		STA			CNT4
+   144 0000EBFD AD C2 00            		LDA			R_SaveData+4
+   145 0000EC00 85 AA               		STA			CNT5
+   146 0000EC02 AD C3 00            		LDA			R_SaveData+5
+   147 0000EC05 85 AB               		STA			CNT6
+   148 0000EC07 20 C1 EC            		JSR			F_crc_check_handle
+   149 0000EC0A 90 07               		BCC			F_ReadGXHTV4Data_Exit
+   150 0000EC0C 20 9E EC            		JSR			CAL_IC_HUM
+   151 0000EC0F 60                  		RTS
+   152                              
+   153 0000EC10                     F_ReadGXHTV4StopExit:
+   154 0000EC10 20 46 EF            		JSR			F_IIC_stop
+   155                              
+   156 0000EC13                     F_ReadGXHTV4Data_Exit:
+   157 0000EC13 60                  		RTS
+   158                              
+   159 0000EC14                     F_GXHTV4WaitReady:
+   160                              		; 0x24 是 0.1s 加热测量命令，这里等待约 160ms，先把“时间不够”排除掉。
+   161 0000EC14 A9 02               		LDA			#02H
+   162 0000EC16 48                  		PHA
+   163 0000EC17                     F_GXHTV4WaitReady_A:
+   164 0000EC17 A0 FF               		LDY			#0FFH
+   165 0000EC19                     F_GXHTV4WaitReady_Y:
+   166 0000EC19 A2 FF               		LDX			#0FFH
+   167 0000EC1B                     F_GXHTV4WaitReady_X:
+   168 0000EC1B CA                  		DEX
+   169 0000EC1C D0 FD               		BNE			F_GXHTV4WaitReady_X
+   170 0000EC1E 88                  		DEY
+   171 0000EC1F D0 F8               		BNE			F_GXHTV4WaitReady_Y
+   172 0000EC21 68                  		PLA
+   173 0000EC22 38                  		SEC
+   174 0000EC23 E9 01               		SBC			#01H
+   175 0000EC25 F0 03               		BEQ			F_GXHTV4WaitReady_Done
+   176 0000EC27 48                  		PHA
+   177 0000EC28 D0 ED               		BNE			F_GXHTV4WaitReady_A
+   178                              		
+   179 0000EC2A                     F_GXHTV4WaitReady_Done:
+   180 0000EC2A 60                  		RTS
+   181                              
+   182                              ;======================================================================
+   183                              ;.COMMENT	@
+   184                              ;  Input CNT4,CNT5
+   185                              ;======================================================================
+   186 0000EC2B                     CAL_IC_TEMP:   ;IN:CNT4,CNT5
+   187                                  ;T=(-450 + ST * 1750/65535)/10
+   188 0000EC2B A5 A9                   	LDA            	CNT4
+   189 0000EC2D 85 AC                   	STA          	X_H
+   190 0000EC2F A5 AA                   	LDA            	CNT5
+   191 0000EC31 85 AF                   	STA           	X_L
+   192                                  	
+   193 0000EC33 A9 D6                   	LDA          	#0D6H        ;1750 =6D6
+   194 0000EC35 85 B1                   	STA           	Y_L
+   195 0000EC37 A9 06                   	LDA           	#06H
+   196 0000EC39 85 B0                   	STA           	Y_H
+   197 0000EC3B 20 7B ED                	JSR            	MUL_HEX     ;/65536=10000H
+   198 0000EC3E A9 FF                   	LDA	    		#0FFH
+   199 0000EC40 85 B0                   	STA	   			Y_H
+   200 0000EC42 A9 FF                   	LDA	    		#0FFH
+   201 0000EC44 85 B1                   	STA    			Y_L
+   202 0000EC46 20 19 ED            		JSR				DIV_HEX		;OUT:X
+   203                              	
+   204 0000EC49 38                  		SEC
+   205 0000EC4A A5 AF               		LDA				X_L
+   206 0000EC4C E9 C2               		SBC				#0xC2
+   207 0000EC4E A5 AE               		LDA				X_M 
+   208 0000EC50 E9 01               		SBC				#0x01
+   209                               
+   210 0000EC52 90 23               		BCC            CAL_TEMP_PLUS
+   211                              ;=======  + =======================
+   212 0000EC54 38                  		SEC
+   213 0000EC55 A5 AF               		LDA				X_L
+   214 0000EC57 E9 C2               		SBC				#0xC2
+   215 0000EC59 85 A4               		STA				TEMP_INTEGAL
+   216 0000EC5B A5 AE               		lda				X_M
+   217 0000EC5D E9 01               		SBC				#0x01
+   218 0000EC5F 85 A3                    	STA				TEMP_INTEGAH
+   219                              
+   220 0000EC61 38                  		SEC
+   221 0000EC62 A5 A4               		LDA			TEMP_INTEGAL
+   222 0000EC64 E9 BC               		SBC			#0xBC
+   223 0000EC66 A5 A3               		LDA			TEMP_INTEGAH
+   224 0000EC68 E9 02               		SBC			#0x02
+   225                              
+   226 0000EC6A 90 31                   	BCC			CAL_TEMP_OUT
+   227 0000EC6C A9 02                   	LDA			#02H
+   228 0000EC6E 85 A3                   	STA			TEMP_INTEGAH
+   229 0000EC70 A9 BC                   	LDA			#0BCH
+   230 0000EC72 85 A4                   	STA			TEMP_INTEGAL
+   231 0000EC74 4C 9D EC                	JMP			CAL_TEMP_OUT
+   232 0000EC77                     CAL_TEMP_PLUS: ; -
+   233 0000EC77 38                  		SEC
+   234 0000EC78 A9 C2               		LDA			#0C2H
+   235 0000EC7A E5 AF               		SBC			X_L 
+   236 0000EC7C 85 A4               		STA			TEMP_INTEGAL
+   237 0000EC7E A9 01               		LDA			#0X01
+   238 0000EC80 E5 AE               		SBC			X_M 
+   239 0000EC82 85 A3               		STA			TEMP_INTEGAH
+   240                              ;		BSF			TEMP_INTEGAH,BIT7		;-
+   241 0000EC84 A5 A3               		LDA			TEMP_INTEGAH
+   242 0000EC86 09 80               		ORA			#0x80
+   243 0000EC88 85 A3               		STA			TEMP_INTEGAH
+   244                              
+   245 0000EC8A 38                  		SEC
+   246 0000EC8B A5 A4               		LDA			TEMP_INTEGAL
+   247 0000EC8D E9 C8               		SBC			#0xC8
+   248 0000EC8F A5 A3               		LDA			TEMP_INTEGAH
+   249 0000EC91 E9 80               		SBC			#0x080
+   250 0000EC93 90 08               		BCC			CAL_TEMP_OUT
+   251 0000EC95 A9 80                   	LDA			#080H
+   252 0000EC97 85 A3                   	STA			TEMP_INTEGAH
+   253 0000EC99 A9 C8                   	LDA			#0C8H
+   254 0000EC9B 85 A4                   	STA			TEMP_INTEGAL
+   255 0000EC9D                     CAL_TEMP_OUT:
+   256 0000EC9D 60                  		RTS
+   257                              ;======================================================================
+   258                              ;======================================================================
+   259 0000EC9E                     CAL_IC_HUM:   ;IN:CNT4,CNT5
+   260                                  ;T=100* S / 65533
+   261 0000EC9E A5 A9                   	LDA      	CNT4
+   262 0000ECA0 85 AC               		STA        	X_H
+   263 0000ECA2 A5 AA                   	LDA       	CNT5
+   264 0000ECA4 85 AF                   	STA        	X_L
+   265 0000ECA6 A9 64                   	LDA      	#064H        ;125 = 7D
+   266 0000ECA8 85 B1                   	STA     	Y_L
+   267 0000ECAA A9 00                   	LDA			#00
+   268 0000ECAC 85 B0                   	STA        	Y_H
+   269 0000ECAE 20 7B ED                	JSR         MUL_HEX     ;/65536=10000H
+   270 0000ECB1 A9 FF                   	LDA	    	#0FFH
+   271 0000ECB3 85 B0                   	STA	   		Y_H
+   272 0000ECB5 A9 FD                   	LDA	    	#0FDH
+   273 0000ECB7 85 B1                   	STA    		Y_L
+   274 0000ECB9 20 19 ED            		JSR			DIV_HEX		;OUT:X
+   275 0000ECBC A5 AF               		LDA			X_L
+   276 0000ECBE 85 A5               		STA			HUM
+   277                              ;======================
+   278                              ;		BBR7		HUM,CAL_HUM_OUT
+   279                              ;		LDA			#00H
+   280                              ;   	STA             HUM
+   281 0000ECC0                     CAL_HUM_OUT:
+   282                              ;==========================================
+   283                              ;==========================================
+   284 0000ECC0 60                  		RTS
+   285                              ;==========================
+   286                              ;;*****************
+   287                              ;;crc校验，最高位是1就^0x31
+   288                              ;高位数据放 R_temp1 低位数据放 R_temp0 crc数据放 R_temp2 进
+   289                              ;相等返回 c=1 
+   290 0000ECC1                     F_crc_check_handle:;
+   291 0000ECC1 A5 A9               	LDA		CNT4
+   292 0000ECC3 85 A6               	STA		CNT1
+   293 0000ECC5 A5 AA               	LDA		CNT5
+   294 0000ECC7 85 A7               	STA		CNT2
+   295                              
+   296 0000ECC9 A9 08               	LDA		#0x08
+   297 0000ECCB 85 A8               	STA 	CNT3
+   298 0000ECCD A5 A6               	LDA 	CNT1
+   299 0000ECCF 49 FF               	EOR  	#0xff
+   300 0000ECD1 85 A6               	STA 	CNT1
+   301 0000ECD3                     F_crc_check_h_loop:
+   302 0000ECD3 A5 A6               	LDA		CNT1
+   303 0000ECD5 29 80               	AND		#0x80
+   304                              ;	BIT		#BIT7
+   305 0000ECD7 F0 0C               	BEQ 	F_crc_check_h_loop_clr
+   306 0000ECD9                     F_crc_check_h_loop_set:
+   307 0000ECD9 18                  	CLC
+   308 0000ECDA 26 A6               	ROL 	CNT1 
+   309 0000ECDC A5 A6               	LDA 	CNT1
+   310 0000ECDE 49 31               	EOR  	#0x31
+   311 0000ECE0 85 A6               	STA 	CNT1
+   312 0000ECE2 4C E8 EC            	JMP 	F_crc_check_h_loop_0
+   313 0000ECE5                     F_crc_check_h_loop_clr:
+   314 0000ECE5 18                  	CLC 	
+   315 0000ECE6 26 A6               	ROL 	CNT1
+   316 0000ECE8                     F_crc_check_h_loop_0:
+   317 0000ECE8 C6 A8               	DEC 	CNT3 
+   318 0000ECEA D0 E7               	BNE 	F_crc_check_h_loop
+   319                              ;======================
+   320 0000ECEC A9 08               	LDA		#0x08
+   321 0000ECEE 85 A8               	STA 	CNT3
+   322 0000ECF0 A5 A6               	LDA 	CNT1			;前一位CRC结果
+   323 0000ECF2 45 A7               	EOR 	CNT2
+   324 0000ECF4 85 A6               	STA 	CNT1
+   325 0000ECF6                     F_crc_check_l_loop:
+   326 0000ECF6 A5 A6               	LDA		CNT1
+   327 0000ECF8 29 80               	AND		#0x80
+   328                              ;	BIT		#BIT7
+   329 0000ECFA F0 0C               	BEQ 	F_crc_check_l_loop_clr
+   330 0000ECFC                     F_crc_check_l_loop_set:
+   331 0000ECFC 18                  	clc	
+   332 0000ECFD 26 A6               	ROL 	CNT1
+   333 0000ECFF A5 A6               	LDA 	CNT1
+   334 0000ED01 49 31               	EOR  	#0x31
+   335 0000ED03 85 A6               	STA 	CNT1
+   336 0000ED05 4C 0B ED            	JMP 	F_crc_check_l_loop_0
+   337 0000ED08                     F_crc_check_l_loop_clr:
+   338 0000ED08 18                  	CLC 	
+   339 0000ED09 26 A6               	ROL 	CNT1
+   340 0000ED0B                     F_crc_check_l_loop_0:
+   341 0000ED0B C6 A8               	DEC		CNT3
+   342 0000ED0D D0 E7               	BNE 	F_crc_check_l_loop
+   343                              ;================
+   344 0000ED0F A5 A6               	LDA 	CNT1
+   345 0000ED11 C5 AB               	CMP		CNT6
+   346 0000ED13 D0 02               	BNE		F_crc_check_err
+   347 0000ED15 38                  	SEC 
+   348 0000ED16 60                  	RTS
+   349 0000ED17                     F_crc_check_err:
+   350 0000ED17 18                  	CLC
+   351 0000ED18 60                  	RTS		
+   352                              	
+   353                              	
+   354                              ;----------------------------------------
+   355 0000ED19                     DIV_HEX:;IN:OUT_H,OUT_1,OUT_M,OUT_L; Y_H,Y_L;OUT:X_H,X_1,X_M,X_L
+   356                              	;余数:CNT5,CNT6: USE:X,Y
+   357 0000ED19 A9 00               	lda		#00
+   358 0000ED1B 85 AC               	STA		X_H
+   359 0000ED1D 85 AD               	STA		X_1
+   360 0000ED1F 85 AE               	STA		X_M
+   361 0000ED21 85 AF               	STA		X_L
+   362                              
+   363 0000ED23 85 A7               	STA		CNT2
+   364 0000ED25 85 A8               	STA		CNT3
+   365 0000ED27 85 A9               	STA		CNT4
+   366                              
+   367 0000ED29 A5 B0               	LDA		Y_H;除数为零跳出
+   368 0000ED2B D0 04               	BNE		NDIV1;Z=0
+   369 0000ED2D A5 B1               	LDA		Y_L
+   370 0000ED2F F0 49               	BEQ		NDIV_END;Z=1
+   371 0000ED31                     NDIV1:
+   372 0000ED31 A2 20               	LDX		#32;16
+   373 0000ED33                     NDIV2:
+   374 0000ED33 18                  	CLC
+   375 0000ED34 26 B2               	ROL		OUT_L	;被除数
+   376 0000ED36 26 B3               	ROL		OUT_M
+   377 0000ED38 26 B4               	ROL		OUT_1
+   378 0000ED3A 26 B5               	ROL		OUT_H
+   379                              
+   380 0000ED3C 26 A9               	ROL		CNT4	;余数
+   381 0000ED3E 26 A8               	ROL		CNT3
+   382 0000ED40 26 A7               	ROL		CNT2	;溢出位
+   383                              
+   384 0000ED42 26 AF               	ROL		X_L		;OUT????????
+   385 0000ED44 26 AE               	ROL		X_M
+   386 0000ED46 26 AD               	ROL		X_1
+   387 0000ED48 26 AC               	ROL		X_H
+   388                              
+   389 0000ED4A A5 A7               	LDA		CNT2
+   390 0000ED4C D0 16               	BNE		NDIV_SUB	;Z=0
+   391 0000ED4E 38                  	SEC
+   392 0000ED4F A5 A8               	LDA		CNT3
+   393 0000ED51 E5 B0               	SBC		Y_H
+   394 0000ED53 F0 05               	BEQ		NDIV_7	;Z=1
+   395 0000ED55 B0 0D               	BCS		NDIV_SUB
+   396 0000ED57 4C 77 ED            	JMP		NDIV4	;不够减????
+   397 0000ED5A                     NDIV_7:
+   398 0000ED5A 38                  	SEC
+   399 0000ED5B A5 A9               	LDA		CNT4
+   400 0000ED5D E5 B1               	SBC		Y_L
+   401 0000ED5F B0 03               	BCS		NDIV_SUB;C=1
+   402 0000ED61 4C 77 ED            	JMP		NDIV4	;不够减
+   403 0000ED64                     NDIV_SUB:
+   404 0000ED64 A9 00               	LDA		#00
+   405 0000ED66 85 A7               	STA		CNT2
+   406 0000ED68 38                  	SEC
+   407 0000ED69 A5 A9               	LDA		CNT4
+   408 0000ED6B E5 B1               	SBC		Y_L
+   409 0000ED6D 85 A9               	STA		CNT4
+   410 0000ED6F A5 A8               	LDA		CNT3
+   411 0000ED71 E5 B0               	SBC		Y_H
+   412 0000ED73 85 A8               	STA		CNT3
+   413                              
+   414 0000ED75 E6 AF               	INC		X_L	;OUT LOW BIT
+   415                              
+   416 0000ED77                     NDIV4:
+   417 0000ED77 CA                  	DEX
+   418 0000ED78 D0 B9               	BNE		NDIV2	;Z=0
+   419                              
+   420 0000ED7A                     NDIV_END:
+   421 0000ED7A 60                  	RTS
+   422                              ;----------------------------
+   423 0000ED7B                     MUL_HEX:;双字节 * 双字节 -->4字节;IN:X_H,X_L ; Y_H,Y_L,
+   424                              	;OUT:OUT_H,OUT_1,OUT_M,OUT_L;
+   425 0000ED7B A9 00               	LDA		#00H
+   426 0000ED7D 85 B5               	STA		OUT_H;清零
+   427 0000ED7F 85 B4               	STA		OUT_1
+   428 0000ED81 85 B3               	STA		OUT_M
+   429 0000ED83 85 B2               	STA		OUT_L
+   430 0000ED85 A2 10               	LDX		#$10	;16BIT
+   431 0000ED87                     MUL_LOOP:
+   432                              ;	CLC
+   433 0000ED87 06 B2               	ASL		OUT_L
+   434 0000ED89 26 B3               	ROL		OUT_M
+   435 0000ED8B 26 B4               	ROL		OUT_1
+   436 0000ED8D 26 B5               	ROL		OUT_H
+   437                              
+   438 0000ED8F 26 B1               	ROL		Y_L
+   439 0000ED91 26 B0               	ROL		Y_H
+   440 0000ED93 90 19               	BCC		TO_LOOP0	;C=0 JMP
+   441 0000ED95 18                  	CLC		;CLEAR C
+   442 0000ED96 A5 AF               	LDA		X_L
+   443 0000ED98 65 B2               	ADC		OUT_L
+   444 0000ED9A 85 B2               	STA		OUT_L
+   445 0000ED9C A5 AC               	LDA		X_H
+   446 0000ED9E 65 B3               	ADC		OUT_M
+   447 0000EDA0 85 B3               	STA		OUT_M
+   448 0000EDA2 A9 00               	LDA		#00
+   449 0000EDA4 65 B4               	ADC		OUT_1
+   450 0000EDA6 85 B4               	STA		OUT_1
+   451 0000EDA8 A9 00               	LDA		#00
+   452 0000EDAA 65 B5               	ADC		OUT_H
+   453 0000EDAC 85 B5               	STA		OUT_H
+   454 0000EDAE                     TO_LOOP0:
+   455 0000EDAE CA                  	DEX
+   456 0000EDAF D0 D6               	BNE		MUL_LOOP  	;Z=0	
+   457 0000EDB1 60                  	RTS
+   458                              		
+   459                              ;===================================		
+   460                              	
+   461 0000EDB2                     F_CAL_HEX_BCD2:		;高位放在X，低位放在A
+   462 0000EDB2 86 A6               	STX	CNT1
+   463 0000EDB4 85 A7               	STA	CNT2
+   464                              ;B2_BCD:
+   465                              ;	BC	STATUS,CF		; CLEAR THE CARRY BIT
+   466 0000EDB6 A0 10               	LDY		#16D
+   467                              ;	STA		CNT3
+   468 0000EDB8 A9 00               	LDA		#00
+   469 0000EDBA 85 B5               	STA		OUT_H
+   470 0000EDBC 85 B3               	STA		OUT_M
+   471 0000EDBE 85 B2               	STA		OUT_L
+   472 0000EDC0                     LOOP16:
+   473                              ;	CLC
+   474 0000EDC0 06 A7                   ASL		CNT2
+   475 0000EDC2 26 A6               	ROL		CNT1
+   476 0000EDC4 26 B2               	ROL		OUT_L
+   477 0000EDC6 26 B3               	ROL		OUT_M
+   478 0000EDC8 26 B5               	ROL		OUT_H
+   479 0000EDCA 88                  	DEY
+   480 0000EDCB D0 01               	BNE		ADJDEC
+   481                              ;	JMP	ADJDEC
+   482                              ;	CLRF	STATUS
+   483 0000EDCD 60                  	RTS
+   484                              
+   485 0000EDCE                     ADJDEC:				;	;存到连续两个BYTE所指向的地址
+   486 0000EDCE A2 10               	LDX		#OUT_L-INDF0
+   487 0000EDD0 20 E0 ED            	JSR		ADJBCD
+   488                              
+   489 0000EDD3 A2 11               	LDX		#OUT_M-INDF0	;LOW
+   490 0000EDD5 20 E0 ED            	JSR		ADJBCD
+   491                              
+   492 0000EDD8 A2 13               	LDX		#OUT_H-INDF0
+   493 0000EDDA 20 E0 ED            	JSR		ADJBCD
+   494 0000EDDD 4C C0 ED            	JMP		LOOP16
+   495                                      ;==============
+   496                              
+   497                                      
+   498 0000EDE0                     ADJBCD:
+   499 0000EDE0 B5 A2                       LDA      	INDF0,X
+   500 0000EDE2 85 A9                       STA			CNT4
+   501 0000EDE4 A9 03                       LDA			#3
+   502 0000EDE6 65 A9               		ADC			CNT4
+   503 0000EDE8 85 AA               		STA			CNT5
+   504                              ;		BTFSC		CNT5,BIT3,ADJ1		; TEST IF RESULT > 7
+   505                              ;		%RFC_btsf	CNT5,0x08,ADJ1	
+   506 0000EDEA A5 AA               		LDA			CNT5
+   507 0000EDEC 29 08               		AND			#0x08
+   508 0000EDEE F0 04               		BEQ			ADJ1
+   509 0000EDF0 A5 AA               		LDA			CNT5
+   510 0000EDF2 85 A9               		STA			CNT4
+   511 0000EDF4                     ADJ1:
+   512 0000EDF4 A9 30               		LDA			#30H
+   513 0000EDF6 65 A9               		ADC			CNT4
+   514 0000EDF8 85 AA               		STA			CNT5
+   515                              ;		BTFSC		CNT5,BIT7,ADJ2		; TEST IF RESULT > 7
+   516                              ;		%RFC_btsf	CNT5,0x80,ADJ2
+   517 0000EDFA A5 AA               		LDA			CNT5
+   518 0000EDFC 29 80               		AND			#0x80
+   519 0000EDFE F0 04               		BEQ			ADJ2
+   520 0000EE00 A5 AA               		LDA			CNT5
+   521 0000EE02 85 A9               		STA			CNT4		; SAVE AS MSD
+   522 0000EE04                     ADJ2:
+   523 0000EE04 A5 A9                       LDA	     	CNT4
+   524 0000EE06 95 A2                       STA   		INDF0,X
+   525 0000EE08 60                          RTS
+   526                              ;===================================
+   527 0000EE09                     F_CHANGE_CF:	;X高位，A低位，C和F的显示转化  C-->F X * 9 / 5 + 32
+   528 0000EE09 86 A6               	STX			CNT1
+   529 0000EE0B 85 A7               	STA			CNT2
+   530                              ;	%RFC_bitr	R_TempFlag,D_TempFReg
+   531 0000EE0D A5 A1               	LDA		R_TempFlag
+   532 0000EE0F 29 FB               	AND		#.not.D_TempFReg
+   533 0000EE11 85 A1               	STA		R_TempFlag
+   534 0000EE13 A9 80               	LDA			#10000000B
+   535 0000EE15 24 A6               	BIT			CNT1
+   536 0000EE17 F0 06               	BEQ			CH_C1
+   537                              ;	%RFC_bits	R_TempFlag,D_TempFReg
+   538 0000EE19 A5 A1               	LDA		R_TempFlag
+   539 0000EE1B 09 04               	ORA		#D_TempFReg
+   540 0000EE1D 85 A1               	STA		R_TempFlag
+   541 0000EE1F                     CH_C1:
+   542                              ;	%RFC_bitr	CNT1,0x80
+   543 0000EE1F A5 A6               	LDA		CNT1
+   544 0000EE21 29 7F               	AND		#.not.0x80
+   545 0000EE23 85 A6               	STA		CNT1
+   546 0000EE25 A9 7F                   LDA         #07FH	            ;7F,7FH-->  --.-
+   547 0000EE27 C5 A6               	CMP			CNT1
+   548 0000EE29 D0 03               	BNE			CHANGE_F
+   549                              ;	BEQ			CHANGE1_V
+   550                              ;	BTFSS		FLAG1,TEMP_CF,CHANGE_F			;;(1.7:=0显示C;=1显示F) 
+   551                              ;CHANGE1_V:
+   552 0000EE2B 4C 98 EE            	JMP			CHANGE_RET
+   553 0000EE2E                     CHANGE_F:		 ;转成 F 法氏度
+   554 0000EE2E A9 00                	LDA			#00H
+   555 0000EE30 85 AC               	STA			X_H
+   556 0000EE32 A9 09               	LDA			#09H		;*10
+   557 0000EE34 85 AF               	STA			X_L
+   558 0000EE36 A5 A6               	LDA			CNT1		;<=50度 
+   559 0000EE38 85 B0               	STA			Y_H	;R_TempRT+1
+   560 0000EE3A A5 A7               	LDA			CNT2 		;<=50度 
+   561 0000EE3C 85 B1               	STA			Y_L	;R_TempRT+0
+   562 0000EE3E 20 7B ED            	JSR			MUL_HEX		;OUT: OUT_H ..OUT_L
+   563 0000EE41 A9 00               	LDA			#00H
+   564 0000EE43 85 B0               	STA			Y_H	;R_TempRT+1
+   565 0000EE45 A9 05               	LDA			#05H
+   566 0000EE47 85 B1               	STA			Y_L	;R_TempRT+0
+   567 0000EE49 20 19 ED            	JSR			DIV_HEX		;IN:OUT_H,OUT_1,OUT_M,OUT_L; Y_H,Y_L;OUT:X_H,X_1,X_M,X_L
+   568                              							;余数:CNT3,CNT4: USE:X,Y
+   569                              ;	%RFC_btst	R_TempFlag,D_TempFReg,CHANGE_PLUS
+   570 0000EE4C A5 A1               	LDA		R_TempFlag
+   571 0000EE4E 29 04               	AND		#D_TempFReg
+   572 0000EE50 D0 10               	BNE		CHANGE_PLUS
+   573 0000EE52 18                  	CLC	
+   574 0000EE53 A9 40               	LDA			#40H               ;320==140H     ;为正
+   575 0000EE55 65 AF               	ADC			X_L		          ;DIS_TEMP_INTEGAL,A
+   576 0000EE57 85 AF               	STA			X_L    
+   577 0000EE59 A9 01               	LDA			#01H
+   578 0000EE5B 65 AE                   ADC         X_M
+   579 0000EE5D 85 AE               	STA			X_M
+   580 0000EE5F 4C 90 EE            	JMP	  		CHANGE_OUT
+   581 0000EE62                     CHANGE_PLUS:	;为负
+   582 0000EE62 38                  	SEC
+   583 0000EE63 A5 AF               	LDA			X_L
+   584 0000EE65 E9 41               	SBC			#41H
+   585 0000EE67 A5 AE               	LDA			X_M
+   586 0000EE69 E9 01               	SBC			#01H
+   587 0000EE6B B0 16               	BCS    		CHANGE_SUB	;321 X > 320 为负
+   588                              ;	%RFC_bitr	R_TempFlag,D_TempFReg
+   589 0000EE6D A5 A1               	LDA		R_TempFlag
+   590 0000EE6F 29 FB               	AND		#.not.D_TempFReg
+   591 0000EE71 85 A1               	STA		R_TempFlag
+   592 0000EE73 38                  	SEC
+   593 0000EE74 A9 40               	LDA			#40H
+   594 0000EE76 E5 AF               	SBC			X_L
+   595 0000EE78 85 AF               	STA			X_L
+   596 0000EE7A A9 01               	LDA			#01H
+   597 0000EE7C E5 AE               	SBC			X_M
+   598 0000EE7E 85 AE               	STA			X_M	   ;320 - X	
+   599 0000EE80 4C 90 EE            	JMP			CHANGE_OUT
+   600 0000EE83                     CHANGE_SUB:	;>=33  为负
+   601 0000EE83 38                  	SEC
+   602 0000EE84 A5 AF               	LDA			X_L
+   603 0000EE86 E9 40               	SBC			#40H
+   604 0000EE88 85 AF               	STA			X_L
+   605 0000EE8A A5 AE               	LDA			X_M
+   606 0000EE8C E9 01               	SBC			#01H
+   607 0000EE8E 85 AE               	STA			X_M        ;X- 320
+   608                              
+   609 0000EE90                     CHANGE_OUT:
+   610 0000EE90 A5 AE                   LDA                 X_M
+   611 0000EE92 85 A6                   STA               	CNT1
+   612 0000EE94 A5 AF                   LDA                 X_L
+   613 0000EE96 85 A7                  	STA               	CNT2
+   614                              ;;==================================
+   615 0000EE98                     CHANGE_RET:
+   616                              ;	%RFC_btsf	R_TempFlag,D_TempFReg,CH_R1 
+   617 0000EE98 A5 A1               	LDA	R_TempFlag
+   618 0000EE9A 29 04               	AND	#D_TempFReg
+   619 0000EE9C F0 06               	BEQ	CH_R1
+   620                              ;	%RFC_bits	CNT1,0x80
+   621 0000EE9E A5 A6               	LDA	CNT1
+   622 0000EEA0 09 80               	ORA	#0x80
+   623 0000EEA2 85 A6               	STA	CNT1
+   624 0000EEA4                     CH_R1:
+   625 0000EEA4 60                  	RTS
+   626                              ;;CHANGE_RET1:        ;
+   627                              ;   ; 	LDA               #7FH
+   628                              ;   ; 	STA               CNT1        ;OUT_M
+   629                              ;;    	STA               CNT2        ;OUT_L
+   630                              ;    ;	RTS
+   631                              ;;===========================================        
+   632                              ;==========================================
+   633                              .END
+0 Error(s), 0 Warning(s).
+
