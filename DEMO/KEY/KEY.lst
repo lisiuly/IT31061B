@@ -393,17 +393,17 @@
    390                      <       %F_InitINT:		.MACRO
    391                      <       		LDA		#00000111b		;2HZ （bit0~2) for 111 is 4K 			;timeBaseA 2hz timeBaseB 16hz
    392                      <       		STA		P_TIMER_TimeBase_Sel		
-   393                      <       		LDA		#D_2KHzInt+D_128HzInt+D_TMBAInt+D_TMBBInt;+D_Timer0Int
+   393                      <       		LDA		#D_128HzInt+D_TMBAInt+D_TMBBInt;D_Timer0Int+
    394                      <       		STA		P_INT_Ctrl
-   395                      <       		LDA		#00
-   396                      <       		STA		P_INT_Ctrl2		;disable TMR1 INT
+   395                      <       ;		LDA		#00
+   396                      <       ;		STA		P_INT_Ctrl2		;disable TMR1 INT
    397                      <       ;		LDA		#D_TimerEn+D_TimerFallEdge+D_TimerSrcA_VDD+D_TimerSrcB_LF
    398                      <       ;		STA		P_TIMER_Timer0_Ctrl
-   399                      <       ;		LDA		#0xC8
-   400                      <       ;		LDA		#0xFC
-   401                      <       ;		STA		P_TIMER_TM0Data_LB		;8k
-   402                      <       ;		LDA		#0xFF
-   403                      <       ;		STA		P_TIMER_TM0Data_HB
+   399                      <       ;		LDA		#0FCH
+   400                      <       ;		STA		P_TIMER_TM0Data_LB		; Timer0 reload = FFFCh, scope now shows about 4.096kHz IRQ on this board.
+   401                      <       ;		LDA		#0FFH
+   402                      <       ;		STA		P_TIMER_TM0Data_HB
+   403                      <       ;		STA		P_TIMER_TM0Load_Ctrl
    404                      <       	.ENDM
    405                      <       ;;============================================================================
    406                      <       ;Macro Name: %DisableLCD
@@ -705,10 +705,10 @@
    702                      <       		LDA		#00000000b		
    703                      <       		STA		P_IO_PortB_Data		;PB1蜂鸣器，PB0背光
    704                      <       
-   705                      <       		LDA		#00H
+   705                      <       		LDA		#C_PC7Dir
    706                      <       		STA		P_IO_PortC_Dir
    707                      <       		LDA		#00000000b
-   708                      <       		STA		P_IO_PortC_Data	
+   708                      <       		STA		P_IO_PortC_Data		; PC7 debug output, default low.
    709                      <       		
    710                      <       		LDA		#00h
    711                      <       		STA		P_IO_PortD_Attrib		
@@ -1081,541 +1081,586 @@
   1078                      <       .EXTERN		R_RF1SyncTm
   1079                      <       .EXTERN		R_RF2SyncTm
   1080                      <       .EXTERN		R_RF3SyncTm
-  1081                      <       C_RFCh1Sync57Sec		equ	57
-  1082                      <       C_RFCh2Sync67Sec		equ	67
-  1083                      <       ; C_RFCh3Sync69Sec		equ	69		; 旧值，与协议/规格冲突。
-  1084                      <       C_RFCh3Sync79Sec		equ	79
-  1085                      <       
-  1086                      <       ; RF发码协议位宽:
-  1087                      <       ; Bit0 = 高500us + 低2000us
-  1088                      <       ; Bit1 = 高500us + 低1000us
-  1089                      <       C_RFBitHigh500us		equ	500
-  1090                      <       C_RFBit0Low2000us		equ	2000
-  1091                      <       C_RFBit1Low1000us		equ	1000
-  1092                      <       C_RFPacketBits36		equ	36
-  1093                      <       
-  1094                      <       ; RF收码低脉宽按 50us tick 喂入:
-  1095                      <       ; 1ms = 20 tick, 2ms = 40 tick, 停止位 4~5ms = 80~100 tick
-  1096                      <       C_RFBit1LowMinTick		equ	16
-  1097                      <       C_RFBit1LowMaxTick		equ	24
-  1098                      <       C_RFBit0LowMinTick		equ	36
-  1099                      <       C_RFBit0LowMaxTick		equ	44
-  1100                      <       C_RFStopLowMinTick		equ	80
-  1101                      <       C_RFStopLowMaxTick		equ	100
-  1102                      <       
-  1103                      <       .EXTERN		R_RFBitCnt
-  1104                      <       .EXTERN		R_RFPacket0
-  1105                      <       .EXTERN		R_RFPacket1
-  1106                      <       .EXTERN		R_RFPacket2
-  1107                      <       .EXTERN		R_RFPacket3
-  1108                      <       .EXTERN		R_RFPacket4
-  1109                      <       .EXTERN		R_RFPacket5
-  1110                      <       
-  1111                      <       .EXTERN		R_RF1Flags
-  1112                      <       .EXTERN		R_RF1IdH
-  1113                      <       .EXTERN		R_RF1IdL
-  1114                      <       .EXTERN		R_RF1TempH
-  1115                      <       .EXTERN		R_RF1TempL
-  1116                      <       .EXTERN		R_RF1Hum
-  1117                      <       .EXTERN		R_RF1LostCnt
-  1118                      <       
-  1119                      <       .EXTERN		R_RF2Flags
-  1120                      <       .EXTERN		R_RF2IdH
-  1121                      <       .EXTERN		R_RF2IdL
-  1122                      <       .EXTERN		R_RF2TempH
-  1123                      <       .EXTERN		R_RF2TempL
-  1124                      <       .EXTERN		R_RF2Hum
-  1125                      <       .EXTERN		R_RF2LostCnt
-  1126                      <       
-  1127                      <       .EXTERN		R_RF3Flags
-  1128                      <       .EXTERN		R_RF3IdH
-  1129                      <       .EXTERN		R_RF3IdL
-  1130                      <       .EXTERN		R_RF3TempH
-  1131                      <       .EXTERN		R_RF3TempL
-  1132                      <       .EXTERN		R_RF3Hum
-  1133                      <       .EXTERN		R_RF3LostCnt
-  1134                      <       
-  1135                      <       D_RFValid		equ	01h
-  1136                      <       D_RFLowBat		equ	02h
-  1137                      <       D_RFLost			equ	04h
-  1138                      <       D_RFNeedPair		equ	08h
-  1139                      <       C_RFFail3Times		equ	3
+  1081                      <       C_RFSyncIdle			equ	0FFH
+  1082                      <       C_RFCh1Sync57Sec		equ	57
+  1083                      <       C_RFCh2Sync67Sec		equ	67
+  1084                      <       ; C_RFCh3Sync69Sec		equ	69		; 旧值，与协议/规格冲突。
+  1085                      <       C_RFCh3Sync79Sec		equ	79
+  1086                      <       
+  1087                      <       ; RF发码协议位宽:
+  1088                      <       ; Bit0 = 高500us + 低2000us
+  1089                      <       ; Bit1 = 高500us + 低1000us
+  1090                      <       C_RFBitHigh500us		equ	500
+  1091                      <       C_RFBit0Low2000us		equ	2000
+  1092                      <       C_RFBit1Low1000us		equ	1000
+  1093                      <       C_RFPacketBits36		equ	36
+  1094                      <       
+  1095                      <       ; RF收码低脉宽按 Timer0 实测约 4.096kHz 的样本数喂入:
+  1096                      <       ; bit1 约 4~5 sample，bit0 约 8~9 sample，停止位约 16~20 sample。
+  1097                      <       C_RFBitHighMinSample		equ	01H
+  1098                      <       C_RFBitHighMaxSample		equ	03H
+  1099                      <       C_RFBit1LowMinSample		equ	03H
+  1100                      <       C_RFBit1LowMaxSample		equ	06H
+  1101                      <       C_RFBit0LowMinSample		equ	07H
+  1102                      <       C_RFBit0LowMaxSample		equ	0AH
+  1103                      <       C_RFStopLowMinSample		equ	0FH
+  1104                      <       C_RFStopLowMaxSample		equ	16H
+  1105                      <       
+  1106                      <       .EXTERN		R_RFBitCnt
+  1107                      <       .EXTERN		R_RFPacket0
+  1108                      <       .EXTERN		R_RFPacket1
+  1109                      <       .EXTERN		R_RFPacket2
+  1110                      <       .EXTERN		R_RFPacket3
+  1111                      <       .EXTERN		R_RFPacket4
+  1112                      <       .EXTERN		R_RFPacket5
+  1113                      <       
+  1114                      <       .EXTERN		R_RF1Flags
+  1115                      <       .EXTERN		R_RF1IdH
+  1116                      <       .EXTERN		R_RF1IdL
+  1117                      <       .EXTERN		R_RF1TempH
+  1118                      <       .EXTERN		R_RF1TempL
+  1119                      <       .EXTERN		R_RF1Hum
+  1120                      <       .EXTERN		R_RF1LostCnt
+  1121                      <       .EXTERN		R_RF1RetryStage
+  1122                      <       
+  1123                      <       .EXTERN		R_RF2Flags
+  1124                      <       .EXTERN		R_RF2IdH
+  1125                      <       .EXTERN		R_RF2IdL
+  1126                      <       .EXTERN		R_RF2TempH
+  1127                      <       .EXTERN		R_RF2TempL
+  1128                      <       .EXTERN		R_RF2Hum
+  1129                      <       .EXTERN		R_RF2LostCnt
+  1130                      <       .EXTERN		R_RF2RetryStage
+  1131                      <       
+  1132                      <       .EXTERN		R_RF3Flags
+  1133                      <       .EXTERN		R_RF3IdH
+  1134                      <       .EXTERN		R_RF3IdL
+  1135                      <       .EXTERN		R_RF3TempH
+  1136                      <       .EXTERN		R_RF3TempL
+  1137                      <       .EXTERN		R_RF3Hum
+  1138                      <       .EXTERN		R_RF3LostCnt
+  1139                      <       .EXTERN		R_RF3RetryStage
   1140                      <       
-  1141                      <       ; 室外趋势状态位与 Alarm 的 D_Trend* 布局保持一致，
-  1142                      <       ; 这样 LCD 层可以按同样的 Up/Down/Eq 判定去显示室外趋势图标。
-  1143                      <       .EXTERN		R_RFTrendFlags
-  1144                      <       D_RFTrendInit		equ	01h
-  1145                      <       D_RFTrendTempUp		equ	02h
-  1146                      <       D_RFTrendTempDown	equ	04h
-  1147                      <       D_RFTrendTempRefresh	equ	08h
-  1148                      <       D_RFTrendHumUp		equ	10h
-  1149                      <       D_RFTrendHumDown	equ	20h
-  1150                      <       D_RFTrendHumRefresh	equ	40h
-  1151                      <       
-  1152                      <       ;===================================================
-  1153                      <       ;            Module Define
-  1154                      <       ;====================================================
-  1155                      <       .EXTERN		F_RF_Init
-  1156                      <       .EXTERN		F_RF_SelectNextChannel
-  1157                      <       .EXTERN		F_RF_ClearCurrentChannel
-  1158                      <       .EXTERN		F_RF_StartLongReceive
-  1159                      <       .EXTERN		F_RF_StopLongReceive
-  1160                      <       .EXTERN		F_RF_ServiceHalfSec
-  1161                      <       .EXTERN		F_RF_Service1Sec
-  1162                      <       .EXTERN		F_RF_OnReceiveOK
-  1163                      <       .EXTERN		F_RF_OnReceiveFail
-  1164                      <       .EXTERN		F_RF_ResetPacketBuffer
-  1165                      <       .EXTERN		F_RF_AppendBit0
-  1166                      <       .EXTERN		F_RF_AppendBit1
-  1167                      <       .EXTERN		F_RF_FeedLowPulseTicks
-  1168                      <       .EXTERN		F_RF_Service2KHzSample
-  1169                      <       .EXTERN		F_RF_ParsePacket
-  1170                              ;.INCLUDE	RFC\RFC.inc
-  1171                              ;==========================================
-  1172                              ; External declare area
-  1173                              ;==========================================   
-  1174                              
-  1175                              ;==========================================
-  1176                              ; Public declare area
-  1177                              ;==========================================
-  1178                              .PUBLIC	        F_KeyScan	
-  1179                              
-  1180                              ;==========================================
-  1181                              ; Public declare area
+  1141                      <       D_RFValid		equ	01h
+  1142                      <       D_RFLowBat		equ	02h
+  1143                      <       D_RFLost			equ	04h
+  1144                      <       D_RFNeedPair		equ	08h
+  1145                      <       C_RFFail3Times		equ	3
+  1146                      <       
+  1147                      <       ; 室外趋势状态位与 Alarm 的 D_Trend* 布局保持一致，
+  1148                      <       ; 这样 LCD 层可以按同样的 Up/Down/Eq 判定去显示室外趋势图标。
+  1149                      <       .EXTERN		R_RFTrendFlags
+  1150                      <       D_RFTrendInit		equ	01h
+  1151                      <       D_RFTrendTempUp		equ	02h
+  1152                      <       D_RFTrendTempDown	equ	04h
+  1153                      <       D_RFTrendTempRefresh	equ	08h
+  1154                      <       D_RFTrendHumUp		equ	10h
+  1155                      <       D_RFTrendHumDown	equ	20h
+  1156                      <       D_RFTrendHumRefresh	equ	40h
+  1157                      <       
+  1158                      <       ;===================================================
+  1159                      <       ;            Module Define
+  1160                      <       ;====================================================
+  1161                      <       .EXTERN		F_RF_Init
+  1162                      <       .EXTERN		F_RF_SelectNextChannel
+  1163                      <       .EXTERN		F_RF_ClearCurrentChannel
+  1164                      <       .EXTERN		F_RF_StartLongReceive
+  1165                      <       .EXTERN		F_RF_StopLongReceive
+  1166                      <       .EXTERN		F_RF_ServiceHalfSec
+  1167                      <       .EXTERN		F_RF_Service1Sec
+  1168                      <       .EXTERN		F_RF_ServicePendingParse
+  1169                      <       .EXTERN		F_RF_OnReceiveOK
+  1170                      <       .EXTERN		F_RF_OnReceiveFail
+  1171                      <       .EXTERN		F_RF_ResetPacketBuffer
+  1172                      <       .EXTERN		F_RF_AppendBit0
+  1173                      <       .EXTERN		F_RF_AppendBit1
+  1174                      <       .EXTERN		F_RF_FeedLowPulseTicks
+  1175                      <       .EXTERN		F_RF_Service8KHzSample
+  1176                      <       .EXTERN		F_RF_ParsePacket
+  1177                              ;.INCLUDE	RFC\RFC.inc
+  1178                              ;==========================================
+  1179                              ; External declare area
+  1180                              ;==========================================   
+  1181                              
   1182                              ;==========================================
-  1183                              ;.PUBLIC		R_Option
-  1184                              .PUBLIC		R_Set
-  1185                              .PUBLIC		R_LEDFlag	
-  1186                              ;.PUBLIC		R_LampTime		;play LED time
-  1187                              .PUBLIC		R_BLTime		
-  1188                              .PUBLIC		R_KeyValue		
-  1189                              .PUBLIC		R_KeyTemp		
-  1190                              ;.PUBLIC		R_SpecFlag		
-  1191                              .PUBLIC		R_LongKeyTime	
-  1192                              .PUBLIC		R_SetBack					
-  1193                              .PUBLIC		R_OldKeyValue
-  1194                              .PUBLIC		R_DebounceCnt
-  1195                              .PUBLIC		R_LEDTemp
-  1196                              .PUBLIC		R_KeyFlag
-  1197                              .PUBLIC		F_Check_LED
-  1198                              ;.PUBLIC		InitLED
-  1199                              ;.PUBLIC		Enable_KeyTone
-  1200                              ;.PUBLIC		Down_Month
-  1201                              ;.PUBLIC		Sub_AlmMinute
-  1202                              ;.PUBLIC		Down_Year
-  1203                              ;.PUBLIC		Sub_AlmHour
-  1204                              ;.PUBLIC		Sub_AlmHour
-  1205                              ;.PUBLIC		Down_Day
-  1206                              .PUBLIC			R_KeyFlag1	
-  1207                              ;==========================================
-  1208                              ;Variable RAM declare area
-  1209                              ;==========================================
-  1210 00000000                     .PAGE0
-  1211                              ;R_Option		ds	1
-  1212 00000000 FF                  R_Set			ds	1
-  1213                              D_SetConver		equ	02h
-  1214                              D_SetTimeHour	equ	04h
-  1215                              D_SetTimeMin	equ	08h
-  1216                              D_SetTimeMax	equ	10h
-  1217                              
-  1218                              ;D_SetAConver	equ	02h
-  1219                              D_SetAlarmHour	equ	02h
-  1220                              D_SetAlarmMin	equ	04h
-  1221                              D_SetAlarmMax	equ	08h
-  1222                              
-  1223                              D_SetDateYear	equ	02h
-  1224                              D_SetDateMonth	equ	04h
-  1225                              D_SetDateDay	equ	08h
-  1226                              D_SetDateMax	equ	10h
-  1227                              
-  1228                              D_SetHour	equ	02h
-  1229                              D_SetMin	equ	04h
-  1230                              D_SetMax	equ	08h
-  1231                              
-  1232 00000001 FF                  R_KeyFlag		ds	1
-  1233                              D_KeyTone		equ	01h
-  1234                              D_EnableFastAdd	equ	02h		
-  1235                              D_EnableAlarm	equ	04h
-  1236                              D_EnableSnooze	equ	08h
-  1237                              D_KeyRelDis		equ	10h
-  1238                              D_ToneOn		equ	20h
-  1239                              D_Alarming		equ	40h
-  1240                              D_24Mode		equ	80h		;must for bit7/24mode
-  1241                              	
-  1242 00000002 FF                  R_KeyFlag1		ds	1
-  1243                              D_TimeFlag			equ		01h
-  1244                              D_Timering_Short	equ		02H
-  1245                              D_NoKeyTone			equ		04H
-  1246                              D_DC				equ		08H	
-  1247                              D_EnableSnooze1		equ		10h
-  1248                              
-  1249 00000003 FF                  R_LEDFlag		ds	1
-  1250                              D_LED_ON	equ		0x08		;无DC有小亮
-  1251                              
-  1252                              ;R_LampTime		ds	1		;play LED time
-  1253                              ;D_LampTime		equ	20h
-  1254                              
-  1255 00000004 FF                  R_BLTime			ds	1
-  1256                              D_8SecBL			equ	16
-  1257                              D_2SecBL			equ	4
-  1258                              D_20Sec				equ	40
-  1259                              
-  1260 00000005 FF                  Key_Status			ds		1
-  1261 00000006 FF                  R_LongKeyTime		ds		1		
-  1262                              	
-  1263 00000007 FF                  R_TempTime			ds		1
-  1264 00000008 FF                  R_SetBack			ds		1
-  1265                              C_Sleep20Sec	equ	40	
+  1183                              ; Public declare area
+  1184                              ;==========================================
+  1185                              .PUBLIC	        F_KeyScan	
+  1186                              
+  1187                              ;==========================================
+  1188                              ; Public declare area
+  1189                              ;==========================================
+  1190                              ;.PUBLIC		R_Option
+  1191                              .PUBLIC		R_Set
+  1192                              .PUBLIC		R_LEDFlag	
+  1193                              ;.PUBLIC		R_LampTime		;play LED time
+  1194                              .PUBLIC		R_BLTime		
+  1195                              .PUBLIC		R_KeyValue		
+  1196                              .PUBLIC		R_KeyTemp		
+  1197                              ;.PUBLIC		R_SpecFlag		
+  1198                              .PUBLIC		R_LongKeyTime	
+  1199                              .PUBLIC		R_SetBack					
+  1200                              .PUBLIC		R_OldKeyValue
+  1201                              .PUBLIC		R_DebounceCnt
+  1202                              .PUBLIC		R_LEDTemp
+  1203                              .PUBLIC		R_KeyFlag
+  1204                              .PUBLIC		F_Check_LED
+  1205                              ;.PUBLIC		InitLED
+  1206                              ;.PUBLIC		Enable_KeyTone
+  1207                              ;.PUBLIC		Down_Month
+  1208                              ;.PUBLIC		Sub_AlmMinute
+  1209                              ;.PUBLIC		Down_Year
+  1210                              ;.PUBLIC		Sub_AlmHour
+  1211                              ;.PUBLIC		Sub_AlmHour
+  1212                              ;.PUBLIC		Down_Day
+  1213                              .PUBLIC			R_KeyFlag1	
+  1214                              ;==========================================
+  1215                              ;Variable RAM declare area
+  1216                              ;==========================================
+  1217 00000000                     .PAGE0
+  1218                              ;R_Option		ds	1
+  1219 00000000 FF                  R_Set			ds	1
+  1220                              D_SetConver		equ	02h
+  1221                              D_SetTimeHour	equ	04h
+  1222                              D_SetTimeMin	equ	08h
+  1223                              D_SetTimeMax	equ	10h
+  1224                              
+  1225                              ;D_SetAConver	equ	02h
+  1226                              D_SetAlarmHour	equ	02h
+  1227                              D_SetAlarmMin	equ	04h
+  1228                              D_SetAlarmMax	equ	08h
+  1229                              
+  1230                              D_SetDateYear	equ	02h
+  1231                              D_SetDateMonth	equ	04h
+  1232                              D_SetDateDay	equ	08h
+  1233                              D_SetDateMax	equ	10h
+  1234                              
+  1235                              D_SetHour	equ	02h
+  1236                              D_SetMin	equ	04h
+  1237                              D_SetMax	equ	08h
+  1238                              
+  1239 00000001 FF                  R_KeyFlag		ds	1
+  1240                              D_KeyTone		equ	01h
+  1241                              D_EnableFastAdd	equ	02h		
+  1242                              D_EnableAlarm	equ	04h
+  1243                              D_EnableSnooze	equ	08h
+  1244                              D_KeyRelDis		equ	10h
+  1245                              D_ToneOn		equ	20h
+  1246                              D_Alarming		equ	40h
+  1247                              D_24Mode		equ	80h		;must for bit7/24mode
+  1248                              	
+  1249 00000002 FF                  R_KeyFlag1		ds	1
+  1250                              D_TimeFlag			equ		01h
+  1251                              D_Timering_Short	equ		02H
+  1252                              D_NoKeyTone			equ		04H
+  1253                              D_DC				equ		08H	
+  1254                              D_EnableSnooze1		equ		10h
+  1255                              
+  1256 00000003 FF                  R_LEDFlag		ds	1
+  1257                              D_LED_ON	equ		0x08		;无DC有小亮
+  1258                              
+  1259                              ;R_LampTime		ds	1		;play LED time
+  1260                              ;D_LampTime		equ	20h
+  1261                              
+  1262 00000004 FF                  R_BLTime			ds	1
+  1263                              D_8SecBL			equ	16
+  1264                              D_2SecBL			equ	4
+  1265                              D_20Sec				equ	40
   1266                              
-  1267                              
-  1268                              ;---------------------------------------------------
-  1269                              C_LongKey2Sec		equ		4
-  1270                              C_FastAdd			equ		24		;1秒加8次
-  1271                              
-  1272 00000009 FF                  R_KeyTemp			ds		1	
-  1273 0000000A FF                  R_KeyValue			ds		1		
-  1274 0000000B FF                  R_OldKeyValue		ds		1
-  1275                              D_KeyFcClear		equ		0x01
-  1276                              D_KeyAllTime		equ		0x02
-  1277                              D_KeyLight			equ		0x04
-  1278                              D_KeyUnused		equ		0x08
-  1279                              
-  1280                              
-  1281 0000000C FF                  R_DebounceCnt		ds		1
-  1282                              C_KeyDebounce		equ		2	
-  1283                              ;---------------------------------------------------
-  1284 0000000D FF                  R_LEDTemp		ds	1
-  1285                              
-  1286 0000000E FF                  R_ToneDuty		ds	1
-  1287 0000000F FF                  R_ToneVol		ds	1
-  1288                              ;=====================================================
-  1289 00000000                     .CODE
-  1290                              
-  1291 00000000                     F_KeyScan:	
-  1292                              		; PE0 = LIGHT, PE1 = C/F, PE2 = CH
-  1293 00000000 A5 03               		LDA		P_IO_PortE_Data
-  1294 00000002 29 07               		AND		#(D_Bit2+D_Bit1+D_Bit0)
-  1295 00000004 F0 38               		BEQ		?ReleaseAllKey
-  1296                              
-  1297 00000006 A9 00               		LDA		#00H
-  1298 00000008 85 09               		STA		R_KeyTemp
-  1299                              
-  1300 0000000A A5 03               		LDA		P_IO_PortE_Data
-  1301 0000000C 29 01               		AND		#D_Bit0
-  1302 0000000E F0 06               		BEQ		?L_CheckFcClearKey
-  1303 00000010 A5 09               		LDA		R_KeyTemp
-  1304 00000012 09 04               		ORA		#D_KeyLight
-  1305 00000014 85 09               		STA		R_KeyTemp
+  1267 00000005 FF                  Key_Status			ds		1
+  1268 00000006 FF                  R_LongKeyTime		ds		1		
+  1269                              	
+  1270 00000007 FF                  R_TempTime			ds		1
+  1271 00000008 FF                  R_SetBack			ds		1
+  1272                              C_Sleep20Sec	equ	40	
+  1273                              
+  1274                              
+  1275                              ;---------------------------------------------------
+  1276                              C_LongKey2Sec		equ		4
+  1277                              C_FastAdd			equ		24		;1秒加8次
+  1278                              
+  1279 00000009 FF                  R_KeyTemp			ds		1	
+  1280 0000000A FF                  R_KeyValue			ds		1		
+  1281 0000000B FF                  R_OldKeyValue		ds		1
+  1282                              D_KeyFcClear		equ		0x01
+  1283                              D_KeyAllTime		equ		0x02
+  1284                              D_KeyLight			equ		0x04
+  1285                              D_KeyUnused		equ		0x08
+  1286                              
+  1287                              
+  1288 0000000C FF                  R_DebounceCnt		ds		1
+  1289                              C_KeyDebounce		equ		2	
+  1290                              ;---------------------------------------------------
+  1291 0000000D FF                  R_LEDTemp		ds	1
+  1292                              
+  1293 0000000E FF                  R_ToneDuty		ds	1
+  1294 0000000F FF                  R_ToneVol		ds	1
+  1295                              ;=====================================================
+  1296 00000000                     .CODE
+  1297                              
+  1298                              ; 输入: PE0/PE1/PE2 当前按键电平、历史键值和去抖状态。
+  1299                              ; 输出: 更新 R_KeyValue/R_OldKeyValue，并在按键释放时分发到对应短按功能。
+  1300                              ; 调试: 看 R_KeyTemp、R_KeyValue、R_OldKeyValue、R_DebounceCnt 的变化。
+  1301 00000000                     F_KeyScan:	
+  1302                              		; PE0 = LIGHT, PE1 = C/F, PE2 = CH
+  1303 00000000 A5 03               		LDA		P_IO_PortE_Data
+  1304 00000002 29 07               		AND		#(D_Bit2+D_Bit1+D_Bit0)
+  1305 00000004 F0 38               		BEQ		?ReleaseAllKey
   1306                              
-  1307 00000016                     	?L_CheckFcClearKey:
-  1308 00000016 A5 03               		LDA		P_IO_PortE_Data
-  1309 00000018 29 02               		AND		#D_Bit1
-  1310 0000001A F0 06               		BEQ		?L_CheckAllTimeKey
-  1311 0000001C A5 09               		LDA		R_KeyTemp
-  1312 0000001E 09 01               		ORA		#D_KeyFcClear
-  1313 00000020 85 09               		STA		R_KeyTemp
-  1314                              
-  1315 00000022                     	?L_CheckAllTimeKey:
-  1316 00000022 A5 03               		LDA		P_IO_PortE_Data
-  1317 00000024 29 04               		AND		#D_Bit2
-  1318 00000026 F0 06               		BEQ		?L_HaveKey
-  1319 00000028 A5 09               		LDA		R_KeyTemp
-  1320 0000002A 09 02               		ORA		#D_KeyAllTime
-  1321 0000002C 85 09               		STA		R_KeyTemp
-  1322                              
-  1323 0000002E                     	?L_HaveKey:
-  1324 0000002E A5 09               		LDA		R_KeyTemp
-  1325 00000030 C5 0A               		CMP		R_KeyValue
-  1326 00000032 F0 42               		BEQ		?CheckKeyDebounce
-  1327 00000034 A5 09               		LDA		R_KeyTemp
-  1328 00000036 85 0A               		STA		R_KeyValue
-  1329 00000038 A9 02               		LDA		#C_KeyDebounce
-  1330 0000003A 85 0C               		STA		R_DebounceCnt
-  1331 0000003C 58                  		CLI
-  1332 0000003D 60                  		RTS
-  1333                              				
-  1334 0000003E                     ?ReleaseAllKey:					;按键释放
-  1335                              		%btst	R_KeyFlag,D_KeyRelDis,?L_Exit	
-  1336 0000003E A5 01             1           lda     R_KeyFlag               ;ex.   
-  1337 00000040 29 10             1           and     #D_KeyRelDis              ;  %btst 10H,_BIT0,N
-  1338 00000042 D0 1B             1           bne     ?L_Exit               ;  if(10H.0=1) goto N 
-  1339 00000044 A5 0B               		LDA	R_OldKeyValue
-  1340 00000046 F0 17               		BEQ	?L_Exit
-  1341                              		
-  1342 00000048                     	?L_Dis_KeyTone:		
-  1343 00000048 A5 0B               		LDA		R_OldKeyValue
-  1344 0000004A C9 04               		CMP		#D_KeyLight
-  1345 0000004C D0 03               		BNE		$+5		
-  1346 0000004E 4C C6 00            		JMP		Enable_LightKey			
-  1347                              
-  1348 00000051 C9 02               		CMP		#D_KeyAllTime
-  1349 00000053 D0 03               		BNE		$+5		
-  1350 00000055 4C A8 00            		JMP		Enable_AllTimeKey
-  1351                              
-  1352 00000058 C9 01               		CMP		#D_KeyFcClear
-  1353 0000005A D0 03               		BNE		$+5		
-  1354 0000005C 4C AE 00            		JMP		Enable_FcClearKey
-  1355                              		
-  1356 0000005F                     	?L_Exit:		        ; 将按键值变量清零，退出
-  1357 0000005F A9 00               		LDA		#00
-  1358 00000061 85 0B               		STA		R_OldKeyValue
-  1359 00000063 85 0A               		STA		R_KeyValue
-  1360 00000065 85 09               		STA		R_KeyTemp
-  1361 00000067 A9 02               		LDA	#C_KeyDebounce
-  1362 00000069 85 0C               		STA	R_DebounceCnt
-  1363 0000006B A9 04               		LDA	#C_LongKey2Sec
-  1364 0000006D 85 06               		STA	R_LongKeyTime
-  1365                              		%bitr	R_KeyFlag,(D_EnableFastAdd+D_KeyRelDis)
-  1366 0000006F A5 01             1           lda     R_KeyFlag               ;ex.  
-  1367 00000071 29 ED             1           and     #.NOT.(D_EnableFastAdd+D_KeyRelDis)         ;  %bitr 10H,_BIT0;  10H.0=0
-  1368 00000073 85 01             1           sta     R_KeyFlag
-  1369 00000075 60                  		RTS
-  1370                              		
-  1371 00000076                     ?CheckKeyDebounce:
-  1372 00000076 A5 0C               		LDA	R_DebounceCnt
-  1373 00000078 F0 01               		BEQ	?Key_Process		
-  1374 0000007A 60                  		RTS	
-  1375                              
-  1376 0000007B                     	?Key_Process:
-  1377 0000007B A5 0A               		LDA	R_KeyValue
-  1378 0000007D C5 0B               		CMP	R_OldKeyValue
-  1379 0000007F F0 03               		BEQ	$+5
-  1380 00000081 4C 9F 00            		JMP	Enable_NewKey	
-  1381                              		
-  1382                              
-  1383 00000084                     Hold_Key:							;长按按键功能
-  1384 00000084 A5 06               		LDA		R_LongKeyTime
-  1385 00000086 D0 16               		BNE		?L_LongExit
-  1386 00000088 A9 04               		LDA		#C_LongKey2Sec
-  1387 0000008A 85 06               		STA		R_LongKeyTime
-  1388 0000008C A5 0B               		LDA		R_OldKeyValue
-  1389 0000008E 29 02               		AND		#D_KeyAllTime
-  1390 00000090 D0 09               		BNE		?L_LongAllTimeKey
-  1391 00000092 A5 0B               		LDA		R_OldKeyValue
-  1392 00000094 29 01               		AND		#D_KeyFcClear
-  1393 00000096 F0 06               		BEQ		?L_LongExit
-  1394 00000098 4C BA 00            		JMP		Enable_longFcClearKey
-  1395 0000009B                     	?L_LongAllTimeKey:
-  1396 0000009B 4C BF 00            		JMP		Enable_longAllTimeKey
-  1397 0000009E                     	?L_LongExit:
-  1398 0000009E 60                  		RTS
-  1399                              				
-  1400 0000009F                     Enable_NewKey:
-  1401 0000009F A5 0A               		LDA		R_KeyValue
-  1402 000000A1 85 0B               		STA		R_OldKeyValue		
-  1403 000000A3 A9 04               		LDA		#C_LongKey2Sec
-  1404 000000A5 85 06               		STA		R_LongKeyTime	;长按2秒开始计时
-  1405 000000A7 60                  		RTS
-  1406                              	
-  1407 000000A8                     Enable_AllTimeKey:			; 28 规格：CH 短按按 CH1 -> CH2 -> CH3 -> Auto 循环切换
-  1408 000000A8 20 28 01            		JSR		F_UpdateKey
-  1409 000000AB 4C 00 00            		JMP		F_RF_SelectNextChannel
-  1410                              ;===================FcClearKey======================	 		
-  1411 000000AE                     Enable_FcClearKey:			; 短按切换 C/F，Mold 页循环阈值
-  1412 000000AE 20 28 01            		JSR		F_UpdateKey	
-  1413 000000B1 AD 00 00            		LDA		R_SpecFlag
-  1414 000000B4 49 08               		EOR		#D_TF
-  1415 000000B6 8D 00 00            		STA		R_SpecFlag
-  1416 000000B9 60                  		RTS
-  1417                              
-  1418 000000BA                     Enable_longFcClearKey:
-  1419 000000BA 20 28 01            		JSR		F_UpdateKey
-  1420 000000BD 60                  		RTS
-  1421                              
-  1422 000000BE                     LongFcClearKey_Exit:
-  1423 000000BE 60                  		RTS
-  1424                              
-  1425 000000BF                     Enable_longAllTimeKey:
-  1426 000000BF 20 28 01            		JSR		F_UpdateKey
-  1427 000000C2 4C 00 00            		JMP		F_RF_ClearCurrentChannel
-  1428                              
-  1429 000000C5                     LongAllTimeKey_Exit:
-  1430 000000C5 60                  		RTS
-  1431                              		
-  1432                              				
-  1433                              ;==========================================
-  1434 000000C6                     Enable_LightKey:	
-  1435 000000C6 20 28 01            		JSR		F_UpdateKey
-  1436 000000C9 4C CC 00            		JMP		F_backlightOpen
-  1437                              
-  1438                              
-  1439                              .PUBLIC		F_backlightOpen		
-  1440 000000CC                     F_backlightOpen:
-  1441 000000CC 58                  		CLI
-  1442 000000CD A9 08               		LDA		#D_LED_ON
-  1443 000000CF 85 03               		STA		R_LEDFlag
-  1444 000000D1 A5 12               		LDA		P_IO_PortB_Data
-  1445 000000D3 09 01               		ORA		#D_Bit0
-  1446 000000D5 85 12               		STA		P_IO_PortB_Data
-  1447 000000D7 A9 00               		LDA		#00H
-  1448 000000D9 85 0D               		STA		R_LEDTemp
-  1449 000000DB A9 10               		LDA		#D_8SecBL
-  1450 000000DD 85 04               		STA		R_BLTime
-  1451 000000DF 60                  		RTS
-  1452                              
-  1453                              		
-  1454                              .PUBLIC		INT_PlayPWM
-  1455 000000E0                     INT_PlayPWM:				;在中断里调用
-  1456 000000E0 A5 03               	    LDA     R_LEDFlag
-  1457 000000E2 29 08               	    AND     #D_LED_ON
-  1458 000000E4 F0 07               	    BEQ     ?DisLED		; 背光改成直接高低电平，不再做软件 PWM
-  1459 000000E6 A5 12               		LDA		P_IO_PortB_Data
-  1460 000000E8 09 01               		ORA		#D_Bit0
-  1461 000000EA 85 12               		STA		P_IO_PortB_Data
-  1462 000000EC 60                  		RTS
-  1463                              
-  1464 000000ED                     	?DisLED:
-  1465 000000ED A5 12               		LDA		P_IO_PortB_Data
-  1466 000000EF 29 FE               		AND		#.not.D_Bit0
-  1467 000000F1 85 12               		STA		P_IO_PortB_Data
-  1468 000000F3 60                  		RTS			
-  1469                              		
-  1470                              		
-  1471                              ;		28规格当前产品没有 12/24H 切换入口，这个旧时钟 helper 先屏蔽保留。
-  1472                              ;		Check_1224Mode:		
-  1473                              ;			LDA	R_KeyFlag
-  1474                              ;			EOR	#D_24Mode
-  1475                              ;			STA	R_KeyFlag
-  1476                              ;			RTS		
-  1477                              .PUBLIC		F_PlayKeyTone		
-  1478 000000F4                     F_PlayKeyTone:		;键音
-  1479                              		%btst	R_KeyFlag1,D_NoKeyTone,?Dis_KeyTone		
-  1480 000000F4 A5 02             1           lda     R_KeyFlag1               ;ex.   
-  1481 000000F6 29 04             1           and     #D_NoKeyTone              ;  %btst 10H,_BIT0,N
-  1482 000000F8 D0 06             1           bne     ?Dis_KeyTone               ;  if(10H.0=1) goto N 
-  1483                              		%btst	R_KeyFlag,D_KeyTone,F_EnKeyTone		
-  1484 000000FA A5 01             1           lda     R_KeyFlag               ;ex.   
-  1485 000000FC 29 01             1           and     #D_KeyTone              ;  %btst 10H,_BIT0,N
-  1486 000000FE D0 01             1           bne     F_EnKeyTone               ;  if(10H.0=1) goto N 
-  1487 00000100                     	?Dis_KeyTone:	
-  1488 00000100 60                  		RTS	
-  1489 00000101                      F_EnKeyTone:
-  1490                              		; 键音改成非阻塞触发，避免在主循环里忙等卡住喂狗。
-  1491 00000101 A5 01               		LDA		R_KeyFlag
-  1492 00000103 29 20               		AND		#D_ToneOn
-  1493 00000105 D0 0B               		BNE		?L_KeyToneExit
-  1494                              		%bits	R_KeyFlag,D_ToneOn	
-  1495 00000107 A5 01             1           lda     R_KeyFlag               ;ex.  
-  1496 00000109 09 20             1           ora     #D_ToneOn              ;  %bits 10H,_BIT0
-  1497                            1 		                   ;  10H.0=1
-  1498 0000010B 85 01             1           sta     R_KeyFlag               ;
-  1499 0000010D A9 08               		LDA		#08
-  1500 0000010F 8D 00 00            		STA		R_KeyToneTm	
-  1501 00000112                     	?L_KeyToneExit:
-  1502 00000112 60                  		RTS	
-  1503                              
-  1504                              ;===============================================================
-  1505 00000113                     	F_Check_LED:
-  1506 00000113 A5 04               		LDA		R_BLTime
-  1507 00000115 F0 10               		BEQ		?Exit_LED
-  1508 00000117 C6 04               		DEC		R_BLTime
-  1509 00000119 D0 0C               		BNE		?Exit_LED
-  1510 0000011B A9 00               		LDA		#00
-  1511 0000011D 85 03               		STA		R_LEDFlag
-  1512 0000011F 85 0D               		STA		R_LEDTemp
-  1513 00000121 A5 12               		LDA		P_IO_PortB_Data
-  1514 00000123 29 FE               		AND		#.not.D_Bit0
-  1515 00000125 85 12               		STA		P_IO_PortB_Data
-  1516 00000127                     		?Exit_LED:		
-  1517 00000127 60                  		RTS
-  1518                              ;==============================================================
-  1519 00000128                     F_UpdateKey:						
-  1520                              		%bits	R_KeyFlag,D_KeyTone
-  1521 00000128 A5 01             1           lda     R_KeyFlag               ;ex.  
-  1522 0000012A 09 01             1           ora     #D_KeyTone              ;  %bits 10H,_BIT0
-  1523                            1 		                   ;  10H.0=1
-  1524 0000012C 85 01             1           sta     R_KeyFlag               ;
-  1525                              		%bits	R_KeyFlag,D_KeyRelDis	
-  1526 0000012E A5 01             1           lda     R_KeyFlag               ;ex.  
-  1527 00000130 09 10             1           ora     #D_KeyRelDis              ;  %bits 10H,_BIT0
-  1528                            1 		                   ;  10H.0=1
-  1529 00000132 85 01             1           sta     R_KeyFlag               ;
-  1530 00000134 A5 04               		LDA		R_BLTime
-  1531 00000136 F0 04               		BEQ		F_UpdateKey2
-  1532 00000138 A9 10               		LDA		#D_8SecBL
-  1533 0000013A 85 04               		STA		R_BLTime
-  1534 0000013C                     F_UpdateKey2:							
-  1535 0000013C A9 28               		LDA		#C_Sleep20Sec
-  1536 0000013E 85 08               		STA		R_SetBack
-  1537                              		%bits	R_TimeStatus,AddOthers			
-  1538 00000140 AD 00 00          1           lda     R_TimeStatus               ;ex.  
-  1539 00000143 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
-  1540                            1 		                   ;  10H.0=1
-  1541 00000145 8D 00 00          1           sta     R_TimeStatus               ;
-  1542 00000148 60                  		RTS	
-  1543                              		
-  1544                              .PUBLIC		F_2Hz_Cnt		
-  1545 00000149                     F_2Hz_Cnt:
-  1546 00000149 A5 06               		LDA		R_LongKeyTime
-  1547 0000014B F0 02               		BEQ		CheckKeyHoldTimeout
-  1548 0000014D C6 06               		DEC		R_LongKeyTime
-  1549                              
-  1550 0000014F                     CheckKeyHoldTimeout:
-  1551 0000014F 20 70 01            		jsr		Check_SetBackTime
-  1552 00000152 20 13 01            		JSR		F_Check_LED
-  1553 00000155 4C 58 01            		JMP		F_Check_Temp
-  1554                              ;		RTS
-  1555                              		
-  1556 00000158                     F_Check_Temp:
-  1557                              		%btsf	R_TempFlag1,(D_MaxTemp+D_MinTemp),?Exit_Check
-  1558 00000158 AD 00 00          1           lda     R_TempFlag1               ;ex.   
-  1559 0000015B 29 03             1           and     #(D_MaxTemp+D_MinTemp)              ;  %btsf 10H,_BIT0,N
-  1560 0000015D F0 10             1           beq     ?Exit_Check               ;  if(10H.0=0) goto N 
-  1561 0000015F A5 07               		LDA		R_TempTime
-  1562 00000161 F0 0C               		BEQ		?Exit_Check
-  1563 00000163 C6 07               		DEC		R_TempTime
-  1564 00000165 D0 08               		BNE		?Exit_Check
-  1565                               		%bitr	R_TempFlag1,(D_MaxTemp+D_MinTemp) 
-  1566 00000167 AD 00 00          1           lda     R_TempFlag1               ;ex.  
-  1567 0000016A 29 FC             1           and     #.NOT.(D_MaxTemp+D_MinTemp)         ;  %bitr 10H,_BIT0;  10H.0=0
-  1568 0000016C 8D 00 00          1           sta     R_TempFlag1
-  1569 0000016F                     		?Exit_Check:		
-  1570 0000016F 60                  		RTS		
-  1571                              	
-  1572 00000170                     Check_SetBackTime:
-  1573 00000170 A5 08               		LDA		R_SetBack
-  1574 00000172 F0 10               		BEQ		?L_Exit		
-  1575 00000174 C6 08               		dec		R_SetBack
-  1576 00000176 D0 0C               		bne		?L_Exit	
-  1577 00000178 A9 00               		LDA		#00H
-  1578 0000017A 85 00               		STA		R_Set
-  1579                              		%bits	R_TimeStatus,AddOthers	
-  1580 0000017C AD 00 00          1           lda     R_TimeStatus               ;ex.  
-  1581 0000017F 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
-  1582                            1 		                   ;  10H.0=1
-  1583 00000181 8D 00 00          1           sta     R_TimeStatus               ;
-  1584 00000184                     	?L_Exit:	
-  1585 00000184 60                  		RTS
-  1586                              		
-  1587                              ;.PUBLIC		F_DC_Judge	
-  1588                              ;F_DC_Judge:
-  1589                              ;		LDA		P_IO_PortE_Data
-  1590                              ;		AND		#D_Bit2
-  1591                              ;		BNE		?L_HaveDC
-  1592                              ;		%btsf	R_KeyFlag1,D_DC,?L_Exit		
-  1593                              ;		%bitr	R_KeyFlag1,D_DC		
-  1594                              ;		LDA		#00
-  1595                              ;		STA		R_LEDFlag
-  1596                              ; 		LDA     #$25        ;中亮占空比
-  1597                              ;  		STA     R_ToneVol
-  1598                              ;  	?L_Exit:	
-  1599                              ;  		RTS
-  1600                              ;	?L_HaveDC:
-  1601                              ;		%btst	R_KeyFlag1,D_DC,?L_Exit	
-  1602                              ;		%bits	R_KeyFlag1,D_DC			
-  1603                              ;		JMP		HasDC_LED_1		
-  1604                              ;;		RTS	
-  1605                              ;	
-  1606                              .PUBLIC		F_initSet		
-  1607 00000185                     F_initSet:
-  1608                              		; LDA		#D_TimeMode
-  1609                              		; STA		R_Mode
-  1610 00000185 A9 00               		LDA		#00H
-  1611 00000187 85 00               		STA		R_Set
-  1612 00000189 A9 28               		LDA		#C_Sleep20Sec
-  1613 0000018B 85 08               		STA		R_SetBack
-  1614 0000018D 4C 00 00            		JMP		F_Start_RFCMM_Value
-  1615                              ;		RTS
-  1616                              	
-  1617                              .end
+  1307 00000006 A9 00               		LDA		#00H
+  1308 00000008 85 09               		STA		R_KeyTemp
+  1309                              
+  1310 0000000A A5 03               		LDA		P_IO_PortE_Data
+  1311 0000000C 29 01               		AND		#D_Bit0
+  1312 0000000E F0 06               		BEQ		?L_CheckFcClearKey
+  1313 00000010 A5 09               		LDA		R_KeyTemp
+  1314 00000012 09 04               		ORA		#D_KeyLight
+  1315 00000014 85 09               		STA		R_KeyTemp
+  1316                              
+  1317 00000016                     	?L_CheckFcClearKey:
+  1318 00000016 A5 03               		LDA		P_IO_PortE_Data
+  1319 00000018 29 02               		AND		#D_Bit1
+  1320 0000001A F0 06               		BEQ		?L_CheckAllTimeKey
+  1321 0000001C A5 09               		LDA		R_KeyTemp
+  1322 0000001E 09 01               		ORA		#D_KeyFcClear
+  1323 00000020 85 09               		STA		R_KeyTemp
+  1324                              
+  1325 00000022                     	?L_CheckAllTimeKey:
+  1326 00000022 A5 03               		LDA		P_IO_PortE_Data
+  1327 00000024 29 04               		AND		#D_Bit2
+  1328 00000026 F0 06               		BEQ		?L_HaveKey
+  1329 00000028 A5 09               		LDA		R_KeyTemp
+  1330 0000002A 09 02               		ORA		#D_KeyAllTime
+  1331 0000002C 85 09               		STA		R_KeyTemp
+  1332                              
+  1333 0000002E                     	?L_HaveKey:
+  1334 0000002E A5 09               		LDA		R_KeyTemp
+  1335 00000030 C5 0A               		CMP		R_KeyValue
+  1336 00000032 F0 42               		BEQ		?CheckKeyDebounce
+  1337 00000034 A5 09               		LDA		R_KeyTemp
+  1338 00000036 85 0A               		STA		R_KeyValue
+  1339 00000038 A9 02               		LDA		#C_KeyDebounce
+  1340 0000003A 85 0C               		STA		R_DebounceCnt
+  1341 0000003C 58                  		CLI
+  1342 0000003D 60                  		RTS
+  1343                              				
+  1344 0000003E                     ?ReleaseAllKey:					;按键释放
+  1345                              		%btst	R_KeyFlag,D_KeyRelDis,?L_Exit	
+  1346 0000003E A5 01             1           lda     R_KeyFlag               ;ex.   
+  1347 00000040 29 10             1           and     #D_KeyRelDis              ;  %btst 10H,_BIT0,N
+  1348 00000042 D0 1B             1           bne     ?L_Exit               ;  if(10H.0=1) goto N 
+  1349 00000044 A5 0B               		LDA	R_OldKeyValue
+  1350 00000046 F0 17               		BEQ	?L_Exit
+  1351                              		
+  1352 00000048                     	?L_Dis_KeyTone:		
+  1353 00000048 A5 0B               		LDA		R_OldKeyValue
+  1354 0000004A C9 04               		CMP		#D_KeyLight
+  1355 0000004C D0 03               		BNE		$+5		
+  1356 0000004E 4C C6 00            		JMP		Enable_LightKey			
+  1357                              
+  1358 00000051 C9 02               		CMP		#D_KeyAllTime
+  1359 00000053 D0 03               		BNE		$+5		
+  1360 00000055 4C A8 00            		JMP		Enable_AllTimeKey
+  1361                              
+  1362 00000058 C9 01               		CMP		#D_KeyFcClear
+  1363 0000005A D0 03               		BNE		$+5		
+  1364 0000005C 4C AE 00            		JMP		Enable_FcClearKey
+  1365                              		
+  1366 0000005F                     	?L_Exit:		        ; 将按键值变量清零，退出
+  1367 0000005F A9 00               		LDA		#00
+  1368 00000061 85 0B               		STA		R_OldKeyValue
+  1369 00000063 85 0A               		STA		R_KeyValue
+  1370 00000065 85 09               		STA		R_KeyTemp
+  1371 00000067 A9 02               		LDA	#C_KeyDebounce
+  1372 00000069 85 0C               		STA	R_DebounceCnt
+  1373 0000006B A9 04               		LDA	#C_LongKey2Sec
+  1374 0000006D 85 06               		STA	R_LongKeyTime
+  1375                              		%bitr	R_KeyFlag,(D_EnableFastAdd+D_KeyRelDis)
+  1376 0000006F A5 01             1           lda     R_KeyFlag               ;ex.  
+  1377 00000071 29 ED             1           and     #.NOT.(D_EnableFastAdd+D_KeyRelDis)         ;  %bitr 10H,_BIT0;  10H.0=0
+  1378 00000073 85 01             1           sta     R_KeyFlag
+  1379 00000075 60                  		RTS
+  1380                              		
+  1381 00000076                     ?CheckKeyDebounce:
+  1382 00000076 A5 0C               		LDA	R_DebounceCnt
+  1383 00000078 F0 01               		BEQ	?Key_Process		
+  1384 0000007A 60                  		RTS	
+  1385                              
+  1386 0000007B                     	?Key_Process:
+  1387 0000007B A5 0A               		LDA	R_KeyValue
+  1388 0000007D C5 0B               		CMP	R_OldKeyValue
+  1389 0000007F F0 03               		BEQ	$+5
+  1390 00000081 4C 9F 00            		JMP	Enable_NewKey	
+  1391                              		
+  1392                              
+  1393                              ; 输入: 当前保持中的键值与长按倒计时。
+  1394                              ; 输出: 长按超时后分发到对应长按功能入口。
+  1395                              ; 调试: 看 R_LongKeyTime 归零时是否跳到目标长按处理函数。
+  1396 00000084                     Hold_Key:							;长按按键功能
+  1397 00000084 A5 06               		LDA		R_LongKeyTime
+  1398 00000086 D0 16               		BNE		?L_LongExit
+  1399 00000088 A9 04               		LDA		#C_LongKey2Sec
+  1400 0000008A 85 06               		STA		R_LongKeyTime
+  1401 0000008C A5 0B               		LDA		R_OldKeyValue
+  1402 0000008E 29 02               		AND		#D_KeyAllTime
+  1403 00000090 D0 09               		BNE		?L_LongAllTimeKey
+  1404 00000092 A5 0B               		LDA		R_OldKeyValue
+  1405 00000094 29 01               		AND		#D_KeyFcClear
+  1406 00000096 F0 06               		BEQ		?L_LongExit
+  1407 00000098 4C BA 00            		JMP		Enable_longFcClearKey
+  1408 0000009B                     	?L_LongAllTimeKey:
+  1409 0000009B 4C BF 00            		JMP		Enable_longAllTimeKey
+  1410 0000009E                     	?L_LongExit:
+  1411 0000009E 60                  		RTS
+  1412                              				
+  1413                              ; 输入: 已通过去抖的新键值。
+  1414                              ; 输出: 把当前键值记为旧键，并装入长按计时初值。
+  1415                              ; 调试: 看 R_OldKeyValue 和 R_LongKeyTime 是否在新按键进入时被正确更新。
+  1416 0000009F                     Enable_NewKey:
+  1417 0000009F A5 0A               		LDA		R_KeyValue
+  1418 000000A1 85 0B               		STA		R_OldKeyValue		
+  1419 000000A3 A9 04               		LDA		#C_LongKey2Sec
+  1420 000000A5 85 06               		STA		R_LongKeyTime	;长按2秒开始计时
+  1421 000000A7 60                  		RTS
+  1422                              	
+  1423                              ; 输入: CH 短按释放事件。
+  1424                              ; 输出: 标记按键刷新，并切到下一个室外通道/循环模式。
+  1425                              ; 调试: 看 R_RFChannel、R_RFViewChannel 和 AddOthers 是否同步变化。
+  1426 000000A8                     Enable_AllTimeKey:			; 28 规格：CH 短按按 CH1 -> CH2 -> CH3 -> Auto 循环切换
+  1427 000000A8 20 0E 01            		JSR		F_UpdateKey
+  1428 000000AB 4C 00 00            		JMP		F_RF_SelectNextChannel
+  1429                              ;===================FcClearKey======================	 		
+  1430                              ; 输入: C/F 短按释放事件。
+  1431                              ; 输出: 标记按键刷新，并翻转当前温度单位标志。
+  1432                              ; 调试: 看 R_SpecFlag.D_TF 与界面单位图标是否同步变化。
+  1433 000000AE                     Enable_FcClearKey:			; 短按切换 C/F，Mold 页循环阈值
+  1434 000000AE 20 0E 01            		JSR		F_UpdateKey	
+  1435 000000B1 AD 00 00            		LDA		R_SpecFlag
+  1436 000000B4 49 08               		EOR		#D_TF
+  1437 000000B6 8D 00 00            		STA		R_SpecFlag
+  1438 000000B9 60                  		RTS
+  1439                              
+  1440                              ; 输入: C/F 长按事件。
+  1441                              ; 输出: 当前产品无长按功能，仅保留统一按键刷新入口。
+  1442                              ; 调试: 看长按 C/F 时不会触发额外状态改变。
+  1443 000000BA                     Enable_longFcClearKey:
+  1444 000000BA 20 0E 01            		JSR		F_UpdateKey
+  1445 000000BD 60                  		RTS
+  1446                              
+  1447 000000BE                     LongFcClearKey_Exit:
+  1448 000000BE 60                  		RTS
+  1449                              
+  1450                              ; 输入: CH 长按释放事件。
+  1451                              ; 输出: 标记按键刷新，清当前显示通道并进入 3 分钟长接收。
+  1452                              ; 调试: 看当前通道缓存、R_RFStatus 和 LongRecv 状态是否被重置。
+  1453 000000BF                     Enable_longAllTimeKey:
+  1454 000000BF 20 0E 01            		JSR		F_UpdateKey
+  1455 000000C2 4C 00 00            		JMP		F_RF_ClearCurrentChannel
+  1456                              
+  1457 000000C5                     LongAllTimeKey_Exit:
+  1458 000000C5 60                  		RTS
+  1459                              		
+  1460                              				
+  1461                              ;==========================================
+  1462                              ; 输入: LIGHT 短按释放事件。
+  1463                              ; 输出: 标记按键刷新并打开背光 8 秒。
+  1464                              ; 调试: 看 R_BLTime、R_LEDFlag 和 PB0 输出是否立即生效。
+  1465 000000C6                     Enable_LightKey:	
+  1466 000000C6 20 0E 01            		JSR		F_UpdateKey
+  1467 000000C9 4C CC 00            		JMP		F_backlightOpen
+  1468                              
+  1469                              
+  1470                              .PUBLIC		F_backlightOpen		
+  1471                              ; 输入: 无。
+  1472                              ; 输出: 直接点亮背光，并把背光倒计时装成 8 秒。
+  1473                              ; 调试: 看 R_LEDFlag、R_BLTime、P_IO_PortB_Data bit0。
+  1474 000000CC                     F_backlightOpen:
+  1475 000000CC 58                  		CLI
+  1476 000000CD A9 08               		LDA		#D_LED_ON
+  1477 000000CF 85 03               		STA		R_LEDFlag
+  1478 000000D1 A5 12               		LDA		P_IO_PortB_Data
+  1479 000000D3 09 01               		ORA		#D_Bit0
+  1480 000000D5 85 12               		STA		P_IO_PortB_Data
+  1481 000000D7 A9 00               		LDA		#00H
+  1482 000000D9 85 0D               		STA		R_LEDTemp
+  1483 000000DB A9 10               		LDA		#D_8SecBL
+  1484 000000DD 85 04               		STA		R_BLTime
+  1485 000000DF 60                  		RTS
+  1486                              
+  1487                              		
+  1488                              ; .PUBLIC		INT_PlayPWM
+  1489                              ; ; 输入: 当前背光开关标志 R_LEDFlag。
+  1490                              ; ; 输出: 在中断里把 PB0 直接拉高/拉低，维持背光实际电平。
+  1491                              ; ; 调试: 看 D_LED_ON 与 PB0 电平是否一致。
+  1492                              ; INT_PlayPWM:				;在中断里调用
+  1493                              ; 	    LDA     R_LEDFlag
+  1494                              ; 	    AND     #D_LED_ON
+  1495                              ; 	    BEQ     ?DisLED		; 背光改成直接高低电平，不再做软件 PWM
+  1496                              ; 		LDA		P_IO_PortB_Data
+  1497                              ; 		ORA		#D_Bit0
+  1498                              ; 		STA		P_IO_PortB_Data
+  1499                              ; 		RTS
+  1500                              
+  1501                              ; 	?DisLED:
+  1502                              ; 		LDA		P_IO_PortB_Data
+  1503                              ; 		AND		#.not.D_Bit0
+  1504                              ; 		STA		P_IO_PortB_Data
+  1505                              ; 		RTS			
+  1506                              		
+  1507                              		
+  1508                              ;		28规格当前产品没有 12/24H 切换入口，这个旧时钟 helper 先屏蔽保留。
+  1509                              ;		Check_1224Mode:		
+  1510                              ;			LDA	R_KeyFlag
+  1511                              ;			EOR	#D_24Mode
+  1512                              ;			STA	R_KeyFlag
+  1513                              ;			RTS		
+  1514                              .PUBLIC		F_PlayKeyTone		
+  1515                              ; 输入: 按键音使能位、当前 ToneOn 状态。
+  1516                              ; 输出: 以非阻塞方式触发一次按键音计时。
+  1517                              ; 调试: 看 D_KeyTone、D_ToneOn 与 R_KeyToneTm 的联动。
+  1518 000000E0                     F_PlayKeyTone:		;键音
+  1519                              ;		%btst	R_KeyFlag1,D_NoKeyTone,?Dis_KeyTone		
+  1520                              		%btst	R_KeyFlag,D_KeyTone,F_EnKeyTone		
+  1521 000000E0 A5 01             1           lda     R_KeyFlag               ;ex.   
+  1522 000000E2 29 01             1           and     #D_KeyTone              ;  %btst 10H,_BIT0,N
+  1523 000000E4 D0 01             1           bne     F_EnKeyTone               ;  if(10H.0=1) goto N 
+  1524 000000E6                     	?Dis_KeyTone:	
+  1525 000000E6 60                  		RTS	
+  1526 000000E7                      F_EnKeyTone:
+  1527                              		; 键音改成非阻塞触发，避免在主循环里忙等卡住喂狗。
+  1528 000000E7 A5 01               		LDA		R_KeyFlag
+  1529 000000E9 29 20               		AND		#D_ToneOn
+  1530 000000EB D0 0B               		BNE		?L_KeyToneExit
+  1531                              		%bits	R_KeyFlag,D_ToneOn	
+  1532 000000ED A5 01             1           lda     R_KeyFlag               ;ex.  
+  1533 000000EF 09 20             1           ora     #D_ToneOn              ;  %bits 10H,_BIT0
+  1534                            1 		                   ;  10H.0=1
+  1535 000000F1 85 01             1           sta     R_KeyFlag               ;
+  1536 000000F3 A9 08               		LDA		#08
+  1537 000000F5 8D 00 00            		STA		R_KeyToneTm	
+  1538 000000F8                     		?L_KeyToneExit:
+  1539 000000F8 60                  		RTS	
+  1540                              
+  1541                              ;===============================================================
+  1542                              	; 输入: 当前背光倒计时 R_BLTime。
+  1543                              	; 输出: 每 0.5 秒递减一次背光计时，到 0 后关闭背光输出。
+  1544                              	; 调试: 看 R_BLTime 归零时 R_LEDFlag 和 PB0 是否同步清零。
+  1545 000000F9                     	F_Check_LED:
+  1546 000000F9 A5 04               		LDA		R_BLTime
+  1547 000000FB F0 10               		BEQ		?Exit_LED
+  1548 000000FD C6 04               		DEC		R_BLTime
+  1549 000000FF D0 0C               		BNE		?Exit_LED
+  1550 00000101 A9 00               		LDA		#00
+  1551 00000103 85 03               		STA		R_LEDFlag
+  1552 00000105 85 0D               		STA		R_LEDTemp
+  1553 00000107 A5 12               		LDA		P_IO_PortB_Data
+  1554 00000109 29 FE               		AND		#.not.D_Bit0
+  1555 0000010B 85 12               		STA		P_IO_PortB_Data
+  1556 0000010D                     		?Exit_LED:		
+  1557 0000010D 60                  		RTS
+  1558                              ;==============================================================
+  1559                              ; 输入: 一次有效按键事件。
+  1560                              ; 输出: 触发按键音、禁止重复释放，并在背光已亮时续时到 8 秒。
+  1561                              ; 调试: 看 D_KeyTone、D_KeyRelDis、R_BLTime、AddOthers 是否同步更新。
+  1562 0000010E                     F_UpdateKey:						
+  1563                              ;		%bits	R_KeyFlag,D_KeyTone
+  1564                              		%bits	R_KeyFlag,D_KeyRelDis	
+  1565 0000010E A5 01             1           lda     R_KeyFlag               ;ex.  
+  1566 00000110 09 10             1           ora     #D_KeyRelDis              ;  %bits 10H,_BIT0
+  1567                            1 		                   ;  10H.0=1
+  1568 00000112 85 01             1           sta     R_KeyFlag               ;
+  1569 00000114 A5 04               		LDA		R_BLTime
+  1570 00000116 F0 04               		BEQ		F_UpdateKey2
+  1571 00000118 A9 10               		LDA		#D_8SecBL
+  1572 0000011A 85 04               		STA		R_BLTime
+  1573 0000011C                     F_UpdateKey2:							
+  1574 0000011C A9 28               		LDA		#C_Sleep20Sec
+  1575 0000011E 85 08               		STA		R_SetBack
+  1576                              		%bits	R_TimeStatus,AddOthers			
+  1577 00000120 AD 00 00          1           lda     R_TimeStatus               ;ex.  
+  1578 00000123 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
+  1579                            1 		                   ;  10H.0=1
+  1580 00000125 8D 00 00          1           sta     R_TimeStatus               ;
+  1581 00000128 60                  		RTS	
+  1582                              		
+  1583                              .PUBLIC		F_2Hz_Cnt		
+  1584                              ; 输入: 2Hz 半秒节拍。
+  1585                              ; 输出: 推进长按计时、背光计时、界面自动返回计时和温度保持计时。
+  1586                              ; 调试: 看 R_LongKeyTime、R_BLTime、R_SetBack、R_TempTime 是否按半秒变化。
+  1587 00000129                     F_2Hz_Cnt:
+  1588 00000129 A5 06               		LDA		R_LongKeyTime
+  1589 0000012B F0 02               		BEQ		CheckKeyHoldTimeout
+  1590 0000012D C6 06               		DEC		R_LongKeyTime
+  1591                              
+  1592 0000012F                     CheckKeyHoldTimeout:
+  1593 0000012F 20 35 01            		jsr		Check_SetBackTime
+  1594 00000132 20 F9 00            		JSR		F_Check_LED
+  1595                              ;		JMP		F_Check_Temp
+  1596                              ;		RTS
+  1597                              		
+  1598                              ; ; 输入: 最大/最小温度保持标志和保持计时。
+  1599                              ; ; 输出: 到时后清掉极值保持状态。
+  1600                              ; ; 调试: 看 R_TempTime 归零时 D_MaxTemp/D_MinTemp 是否清除。
+  1601                              ; F_Check_Temp:
+  1602                              ; 		%btsf	R_TempFlag1,(D_MaxTemp+D_MinTemp),?Exit_Check
+  1603                              ; 		LDA		R_TempTime
+  1604                              ; 		BEQ		?Exit_Check
+  1605                              ; 		DEC		R_TempTime
+  1606                              ; 		BNE		?Exit_Check
+  1607                              ;  		%bitr	R_TempFlag1,(D_MaxTemp+D_MinTemp) 
+  1608                              ; 		?Exit_Check:		
+  1609                              ; 		RTS		
+  1610                              	
+  1611                              ; 输入: 自动返回计时 R_SetBack。
+  1612                              ; 输出: 计时归零后退出设置态并请求界面刷新。
+  1613                              ; 调试: 看 R_SetBack 归零时 R_Set 和 AddOthers 是否同步更新。
+  1614 00000135                     Check_SetBackTime:
+  1615 00000135 A5 08               		LDA		R_SetBack
+  1616 00000137 F0 10               		BEQ		?L_Exit		
+  1617 00000139 C6 08               		dec		R_SetBack
+  1618 0000013B D0 0C               		bne		?L_Exit	
+  1619 0000013D A9 00               		LDA		#00H
+  1620 0000013F 85 00               		STA		R_Set
+  1621                              		%bits	R_TimeStatus,AddOthers	
+  1622 00000141 AD 00 00          1           lda     R_TimeStatus               ;ex.  
+  1623 00000144 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
+  1624                            1 		                   ;  10H.0=1
+  1625 00000146 8D 00 00          1           sta     R_TimeStatus               ;
+  1626 00000149                     	?L_Exit:	
+  1627 00000149 60                  		RTS
+  1628                              		
+  1629                              ;.PUBLIC		F_DC_Judge	
+  1630                              ;F_DC_Judge:
+  1631                              ;		LDA		P_IO_PortE_Data
+  1632                              ;		AND		#D_Bit2
+  1633                              ;		BNE		?L_HaveDC
+  1634                              ;		%btsf	R_KeyFlag1,D_DC,?L_Exit		
+  1635                              ;		%bitr	R_KeyFlag1,D_DC		
+  1636                              ;		LDA		#00
+  1637                              ;		STA		R_LEDFlag
+  1638                              ; 		LDA     #$25        ;中亮占空比
+  1639                              ;  		STA     R_ToneVol
+  1640                              ;  	?L_Exit:	
+  1641                              ;  		RTS
+  1642                              ;	?L_HaveDC:
+  1643                              ;		%btst	R_KeyFlag1,D_DC,?L_Exit	
+  1644                              ;		%bits	R_KeyFlag1,D_DC			
+  1645                              ;		JMP		HasDC_LED_1		
+  1646                              ;;		RTS	
+  1647                              ;	
+  1648                              .PUBLIC		F_initSet		
+  1649                              ; 输入: 无。
+  1650                              ; 输出: 初始化设置态计时，并同步初始化温湿度记录缓存。
+  1651                              ; 调试: 看 R_Set、R_SetBack 以及 F_Start_RFCMM_Value 的结果。
+  1652 0000014A                     F_initSet:
+  1653                              		; LDA		#D_TimeMode
+  1654                              		; STA		R_Mode
+  1655 0000014A A9 00               		LDA		#00H
+  1656 0000014C 85 00               		STA		R_Set
+  1657 0000014E A9 28               		LDA		#C_Sleep20Sec
+  1658 00000150 85 08               		STA		R_SetBack
+  1659                              ;		JMP		F_Start_RFCMM_Value
+  1660 00000152 60                  		RTS
+  1661                              	
+  1662                              .end
 0 Error(s), 0 Warning(s).

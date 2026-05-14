@@ -403,17 +403,17 @@
    400                      <       %F_InitINT:		.MACRO
    401                      <       		LDA		#00000111b		;2HZ （bit0~2) for 111 is 4K 			;timeBaseA 2hz timeBaseB 16hz
    402                      <       		STA		P_TIMER_TimeBase_Sel		
-   403                      <       		LDA		#D_2KHzInt+D_128HzInt+D_TMBAInt+D_TMBBInt;+D_Timer0Int
+   403                      <       		LDA		#D_128HzInt+D_TMBAInt+D_TMBBInt;D_Timer0Int+
    404                      <       		STA		P_INT_Ctrl
-   405                      <       		LDA		#00
-   406                      <       		STA		P_INT_Ctrl2		;disable TMR1 INT
+   405                      <       ;		LDA		#00
+   406                      <       ;		STA		P_INT_Ctrl2		;disable TMR1 INT
    407                      <       ;		LDA		#D_TimerEn+D_TimerFallEdge+D_TimerSrcA_VDD+D_TimerSrcB_LF
    408                      <       ;		STA		P_TIMER_Timer0_Ctrl
-   409                      <       ;		LDA		#0xC8
-   410                      <       ;		LDA		#0xFC
-   411                      <       ;		STA		P_TIMER_TM0Data_LB		;8k
-   412                      <       ;		LDA		#0xFF
-   413                      <       ;		STA		P_TIMER_TM0Data_HB
+   409                      <       ;		LDA		#0FCH
+   410                      <       ;		STA		P_TIMER_TM0Data_LB		; Timer0 reload = FFFCh, scope now shows about 4.096kHz IRQ on this board.
+   411                      <       ;		LDA		#0FFH
+   412                      <       ;		STA		P_TIMER_TM0Data_HB
+   413                      <       ;		STA		P_TIMER_TM0Load_Ctrl
    414                      <       	.ENDM
    415                      <       ;;============================================================================
    416                      <       ;Macro Name: %DisableLCD
@@ -715,10 +715,10 @@
    712                      <       		LDA		#00000000b		
    713                      <       		STA		P_IO_PortB_Data		;PB1蜂鸣器，PB0背光
    714                      <       
-   715                      <       		LDA		#00H
+   715                      <       		LDA		#C_PC7Dir
    716                      <       		STA		P_IO_PortC_Dir
    717                      <       		LDA		#00000000b
-   718                      <       		STA		P_IO_PortC_Data	
+   718                      <       		STA		P_IO_PortC_Data		; PC7 debug output, default low.
    719                      <       		
    720                      <       		LDA		#00h
    721                      <       		STA		P_IO_PortD_Attrib		
@@ -1223,13 +1223,13 @@
   1220                      <       C_RFAutoSwitch4Sec		equ	4
   1221                      <       
   1222                      <       .EXTERN		R_RFRecvWindowTm
-  1223                      <       .EXTERN		R_RFLostFlashStep
-  1224                      <       C_RFRecvWindow2SecTick	equ	4		; 最新协议已改回提前 2 秒开接收，窗口总长 2 秒。
-  1225                      <       ; C_RFRecvWindow3Sec		equ	6		; 旧一版规格写过 3 秒总窗口，现已不用，保留注释。
-  1226                      <       
-  1227                      <       .EXTERN		R_RF1SyncTm
-  1228                      <       .EXTERN		R_RF2SyncTm
-  1229                      <       .EXTERN		R_RF3SyncTm
+  1223                      <       C_RFRecvWindow2SecTick	equ	4		; 最新协议已改回提前 2 秒开接收，窗口总长 2 秒。
+  1224                      <       ; C_RFRecvWindow3Sec		equ	6		; 旧一版规格写过 3 秒总窗口，现已不用，保留注释。
+  1225                      <       
+  1226                      <       .EXTERN		R_RF1SyncTm
+  1227                      <       .EXTERN		R_RF2SyncTm
+  1228                      <       .EXTERN		R_RF3SyncTm
+  1229                      <       C_RFSyncIdle			equ	0FFH
   1230                      <       C_RFCh1Sync57Sec		equ	57
   1231                      <       C_RFCh2Sync67Sec		equ	67
   1232                      <       ; C_RFCh3Sync69Sec		equ	69		; 旧值，与协议/规格冲突。
@@ -1243,457 +1243,473 @@
   1240                      <       C_RFBit1Low1000us		equ	1000
   1241                      <       C_RFPacketBits36		equ	36
   1242                      <       
-  1243                      <       ; RF收码低脉宽按 50us tick 喂入:
-  1244                      <       ; 1ms = 20 tick, 2ms = 40 tick, 停止位 4~5ms = 80~100 tick
-  1245                      <       C_RFBit1LowMinTick		equ	16
-  1246                      <       C_RFBit1LowMaxTick		equ	24
-  1247                      <       C_RFBit0LowMinTick		equ	36
-  1248                      <       C_RFBit0LowMaxTick		equ	44
-  1249                      <       C_RFStopLowMinTick		equ	80
-  1250                      <       C_RFStopLowMaxTick		equ	100
-  1251                      <       
-  1252                      <       .EXTERN		R_RFBitCnt
-  1253                      <       .EXTERN		R_RFPacket0
-  1254                      <       .EXTERN		R_RFPacket1
-  1255                      <       .EXTERN		R_RFPacket2
-  1256                      <       .EXTERN		R_RFPacket3
-  1257                      <       .EXTERN		R_RFPacket4
-  1258                      <       .EXTERN		R_RFPacket5
-  1259                      <       
-  1260                      <       .EXTERN		R_RF1Flags
-  1261                      <       .EXTERN		R_RF1IdH
-  1262                      <       .EXTERN		R_RF1IdL
-  1263                      <       .EXTERN		R_RF1TempH
-  1264                      <       .EXTERN		R_RF1TempL
-  1265                      <       .EXTERN		R_RF1Hum
-  1266                      <       .EXTERN		R_RF1LostCnt
-  1267                      <       .EXTERN		R_RF1RetryStage
-  1268                      <       
-  1269                      <       .EXTERN		R_RF2Flags
-  1270                      <       .EXTERN		R_RF2IdH
-  1271                      <       .EXTERN		R_RF2IdL
-  1272                      <       .EXTERN		R_RF2TempH
-  1273                      <       .EXTERN		R_RF2TempL
-  1274                      <       .EXTERN		R_RF2Hum
-  1275                      <       .EXTERN		R_RF2LostCnt
-  1276                      <       .EXTERN		R_RF2RetryStage
-  1277                      <       
-  1278                      <       .EXTERN		R_RF3Flags
-  1279                      <       .EXTERN		R_RF3IdH
-  1280                      <       .EXTERN		R_RF3IdL
-  1281                      <       .EXTERN		R_RF3TempH
-  1282                      <       .EXTERN		R_RF3TempL
-  1283                      <       .EXTERN		R_RF3Hum
-  1284                      <       .EXTERN		R_RF3LostCnt
-  1285                      <       .EXTERN		R_RF3RetryStage
-  1286                      <       
-  1287                      <       D_RFValid		equ	01h
-  1288                      <       D_RFLowBat		equ	02h
-  1289                      <       D_RFLost			equ	04h
-  1290                      <       D_RFNeedPair		equ	08h
-  1291                      <       C_RFFail3Times		equ	3
-  1292                      <       
-  1293                      <       ; 室外趋势状态位与 Alarm 的 D_Trend* 布局保持一致，
-  1294                      <       ; 这样 LCD 层可以按同样的 Up/Down/Eq 判定去显示室外趋势图标。
-  1295                      <       .EXTERN		R_RFTrendFlags
-  1296                      <       D_RFTrendInit		equ	01h
-  1297                      <       D_RFTrendTempUp		equ	02h
-  1298                      <       D_RFTrendTempDown	equ	04h
-  1299                      <       D_RFTrendTempRefresh	equ	08h
-  1300                      <       D_RFTrendHumUp		equ	10h
-  1301                      <       D_RFTrendHumDown	equ	20h
-  1302                      <       D_RFTrendHumRefresh	equ	40h
-  1303                      <       
-  1304                      <       ;===================================================
-  1305                      <       ;            Module Define
-  1306                      <       ;====================================================
-  1307                      <       .EXTERN		F_RF_Init
-  1308                      <       .EXTERN		F_RF_SelectNextChannel
-  1309                      <       .EXTERN		F_RF_ClearCurrentChannel
-  1310                      <       .EXTERN		F_RF_StartLongReceive
-  1311                      <       .EXTERN		F_RF_StopLongReceive
-  1312                      <       .EXTERN		F_RF_ServiceHalfSec
-  1313                      <       .EXTERN		F_RF_Service1Sec
-  1314                      <       .EXTERN		F_RF_OnReceiveOK
-  1315                      <       .EXTERN		F_RF_OnReceiveFail
-  1316                      <       .EXTERN		F_RF_ResetPacketBuffer
-  1317                      <       .EXTERN		F_RF_AppendBit0
-  1318                      <       .EXTERN		F_RF_AppendBit1
-  1319                      <       .EXTERN		F_RF_FeedLowPulseTicks
-  1320                      <       .EXTERN		F_RF_Service2KHzSample
-  1321                      <       .EXTERN		F_RF_ParsePacket
-  1322                              
-  1323                              ;==========================================
-  1324                              ; Include file area
-  1325                              ;==========================================
-  1326                              
-  1327                              
-  1328                              
+  1243                      <       ; RF收码低脉宽按 Timer0 实测约 4.096kHz 的样本数喂入:
+  1244                      <       ; bit1 约 4~5 sample，bit0 约 8~9 sample，停止位约 16~20 sample。
+  1245                      <       C_RFBitHighMinSample		equ	01H
+  1246                      <       C_RFBitHighMaxSample		equ	03H
+  1247                      <       C_RFBit1LowMinSample		equ	03H
+  1248                      <       C_RFBit1LowMaxSample		equ	06H
+  1249                      <       C_RFBit0LowMinSample		equ	07H
+  1250                      <       C_RFBit0LowMaxSample		equ	0AH
+  1251                      <       C_RFStopLowMinSample		equ	0FH
+  1252                      <       C_RFStopLowMaxSample		equ	16H
+  1253                      <       
+  1254                      <       .EXTERN		R_RFBitCnt
+  1255                      <       .EXTERN		R_RFPacket0
+  1256                      <       .EXTERN		R_RFPacket1
+  1257                      <       .EXTERN		R_RFPacket2
+  1258                      <       .EXTERN		R_RFPacket3
+  1259                      <       .EXTERN		R_RFPacket4
+  1260                      <       .EXTERN		R_RFPacket5
+  1261                      <       
+  1262                      <       .EXTERN		R_RF1Flags
+  1263                      <       .EXTERN		R_RF1IdH
+  1264                      <       .EXTERN		R_RF1IdL
+  1265                      <       .EXTERN		R_RF1TempH
+  1266                      <       .EXTERN		R_RF1TempL
+  1267                      <       .EXTERN		R_RF1Hum
+  1268                      <       .EXTERN		R_RF1LostCnt
+  1269                      <       .EXTERN		R_RF1RetryStage
+  1270                      <       
+  1271                      <       .EXTERN		R_RF2Flags
+  1272                      <       .EXTERN		R_RF2IdH
+  1273                      <       .EXTERN		R_RF2IdL
+  1274                      <       .EXTERN		R_RF2TempH
+  1275                      <       .EXTERN		R_RF2TempL
+  1276                      <       .EXTERN		R_RF2Hum
+  1277                      <       .EXTERN		R_RF2LostCnt
+  1278                      <       .EXTERN		R_RF2RetryStage
+  1279                      <       
+  1280                      <       .EXTERN		R_RF3Flags
+  1281                      <       .EXTERN		R_RF3IdH
+  1282                      <       .EXTERN		R_RF3IdL
+  1283                      <       .EXTERN		R_RF3TempH
+  1284                      <       .EXTERN		R_RF3TempL
+  1285                      <       .EXTERN		R_RF3Hum
+  1286                      <       .EXTERN		R_RF3LostCnt
+  1287                      <       .EXTERN		R_RF3RetryStage
+  1288                      <       
+  1289                      <       D_RFValid		equ	01h
+  1290                      <       D_RFLowBat		equ	02h
+  1291                      <       D_RFLost			equ	04h
+  1292                      <       D_RFNeedPair		equ	08h
+  1293                      <       C_RFFail3Times		equ	3
+  1294                      <       
+  1295                      <       ; 室外趋势状态位与 Alarm 的 D_Trend* 布局保持一致，
+  1296                      <       ; 这样 LCD 层可以按同样的 Up/Down/Eq 判定去显示室外趋势图标。
+  1297                      <       .EXTERN		R_RFTrendFlags
+  1298                      <       D_RFTrendInit		equ	01h
+  1299                      <       D_RFTrendTempUp		equ	02h
+  1300                      <       D_RFTrendTempDown	equ	04h
+  1301                      <       D_RFTrendTempRefresh	equ	08h
+  1302                      <       D_RFTrendHumUp		equ	10h
+  1303                      <       D_RFTrendHumDown	equ	20h
+  1304                      <       D_RFTrendHumRefresh	equ	40h
+  1305                      <       
+  1306                      <       ;===================================================
+  1307                      <       ;            Module Define
+  1308                      <       ;====================================================
+  1309                      <       .EXTERN		F_RF_Init
+  1310                      <       .EXTERN		F_RF_SelectNextChannel
+  1311                      <       .EXTERN		F_RF_ClearCurrentChannel
+  1312                      <       .EXTERN		F_RF_StartLongReceive
+  1313                      <       .EXTERN		F_RF_StopLongReceive
+  1314                      <       .EXTERN		F_RF_ServiceHalfSec
+  1315                      <       .EXTERN		F_RF_Service1Sec
+  1316                      <       .EXTERN		F_RF_ServicePendingParse
+  1317                      <       .EXTERN		F_RF_OnReceiveOK
+  1318                      <       .EXTERN		F_RF_OnReceiveFail
+  1319                      <       .EXTERN		F_RF_ResetPacketBuffer
+  1320                      <       .EXTERN		F_RF_AppendBit0
+  1321                      <       .EXTERN		F_RF_AppendBit1
+  1322                      <       .EXTERN		F_RF_FeedLowPulseTicks
+  1323                      <       .EXTERN		F_RF_Service8KHzSample
+  1324                      <       .EXTERN		F_RF_ParsePacket
+  1325                              
+  1326                              ;==========================================
+  1327                              ; Include file area
+  1328                              ;==========================================
   1329                              
-  1330                              ;==========================================
-  1331                              ; External declare area
-  1332                              ;==========================================
-  1333                              .PUBLIC	R_2Hz 
-  1334                              .PUBLIC	R_128Hz
-  1335                              .PUBLIC	R_INTFlag
-  1336                              .PUBLIC F_2HzWakeUp
-  1337                              .PUBLIC Wait1_2Sec
-  1338                              
-  1339                              ;==========================================
-  1340                              ; Public declare area
-  1341                              ;==========================================
-  1342                              .PUBLIC	L_PowerOn
-  1343                              .PUBLIC V_RESET
-  1344                              ;.PUBLIC		IOD_Attmap	
-  1345                              ;.PUBLIC		IOD_Dirmap	
-  1346                              ;.PUBLIC		IOD_Datmap
-  1347                              ;==========================================
-  1348                              ;Variable RAM declare area
-  1349                              ;==========================================
-  1350 00000000                     .PAGE0 ; PAGE指定列在一页上的最大列数和一行上最大的字符数
-  1351 00000000 FF                  R_2Hz		ds	1
-  1352 00000001 FF                  R_128Hz		ds	1
-  1353 00000002 FF                  R_INTFlag	ds	1
-  1354                              
-  1355                              ;IOD_Attmap	ds	1
-  1356                              ;IOD_Dirmap	ds	1
-  1357                              ;IOD_Datmap	ds	1
-  1358                              ;==========================================
-  1359                              ; code starting 
-  1360                              ;==========================================
-  1361 00000000                     .CODE
-  1362 00000000                     V_RESET:
-  1363                              ; User_Code_Start:
-  1364                              ; Code_Start:
-  1365 00000000 78                  		SEI					; 置中断禁止位
-  1366 00000001 A2 FF               		LDX		#FFH		;
-  1367 00000003 9A                  		TXS					;x-->栈指针
-  1368                              
-  1369 00000004 A5 08               		LDA		P_WAKEUP_Ctrl	;唤醒源代码控制寄存器
-  1370 00000006 AA                  		TAX
-  1371 00000007 29 03               		AND		#(D_WakeupKey+D_WakeupTMBA);+D_Wakeup128Hz) ;WakeupKey+TimeBaseA wake up(1/2hz)---------开启128Hz唤醒
-  1372 00000009 F0 36               		BEQ		L_PowerOn        ;No Wakeup     
-  1373                              		
-  1374 0000000B A9 00                       LDA		#00
-  1375 0000000D 85 08               		STA		P_WAKEUP_Ctrl    ;clear wakeup flag
-  1376                              			
-  1377 0000000F A9 20               		LDA		#0x20
-  1378 00000011 85 18               		STA		P_CLK_CPU_Ctrl		; //after sleep mode wake up, sys=4M CPU=4M/1;			
-  1379                              
-  1380 00000013 8A                  		TXA
-  1381 00000014 29 02               		AND		#D_WakeupTMBA  
-  1382                              ;   	BNE		F_2HzWakeUp
-  1383 00000016 F0 03               		BEQ		F_keyWakeup    ;Judge Wakeup
-  1384 00000018 4C 20 00            		JMP		F_2HzWakeUp
-  1385                              ;		TXA		
-  1386                              ;		AND		#D_Wakeup128Hz
-  1387                              ;		BNE		F_128HzWakeUp
-  1388                              ;		
-  1389                              
-  1390 0000001B                     F_keyWakeup:
-  1391                              ;       LDA		#D_TBL_Clr
-  1392                              ;		STA		P_INT_Clear1   
-  1393 0000001B 58                  		CLI
-  1394 0000001C EA                  		nop
-  1395 0000001D 4C 68 01            		JMP		L_ServiceLoop
-  1396                              		
-  1397 00000020                     F_2HzWakeUp:                           ;半秒 0.5s	  
-  1398 00000020 A9 00                 		LDA		#00
-  1399 00000022 85 00                 		STA		R_2Hz
-  1400 00000024 A9 08                 		LDA		#D_TMBAInt
-  1401 00000026 85 43               		STA		P_INT_TimeBaseA_Clear
-  1402 00000028 20 00 00              		JSR		F_2Hz_Cnt
-  1403 0000002B 20 00 00            	    JSR		F_RealTimeClock   ;rtc		
-  1404 0000002E 20 00 00            	    JSR		F_RF_ServiceHalfSec	; RF 同步窗口与双帧确认按 0.5 秒调度
-  1405 00000031 20 00 00            	    JSR		F_CheckLowBattery	; 规格要求显示本机低电图标，检测逻辑接回半秒节拍
-  1406 00000034 20 00 00            	    JSR	    F_JudgeRFC		;温湿度检测	    	
-  1407 00000037 4C 68 01            	    JMP		L_ServiceLoop	
-  1408                              	    
-  1409 0000003A                     F_128HzWakeUp:
-  1410 0000003A A9 00               		LDA		#00
-  1411 0000003C 85 01               		STA		R_128Hz
-  1412                              ;		JSR		F_128Hz_Cnt
-  1413 0000003E 4C 68 01            		JMP		L_ServiceLoop
-  1414                              		
-  1415 00000041                     L_PowerOn:  ;---------------------;POWER UP	开机		
-  1416                              		%InitSystem
-  1417 00000041 A9 00             1 		LDA		#0
-  1418 00000043 85 0E             1 		STA		P_Reset_Status	;Clear AC key reset flag
-  1419                            1 		%Enable32KLF
-  1420                            2 
-  1421 00000045 A9 00             2 		LDA		#D_LFEnable
-  1422 00000047 85 0C             2 		STA		P_CLK_32768_En
-  1423                            2 
-  1424                              		
-  1425                              		;CPU时钟选择
-  1426 00000049 A9 44               		LDA		#0x44					;0100 0100
-  1427 0000004B 85 18               		STA		P_CLK_CPU_Ctrl ;		; Set Fcpu = (500KHz) / 16
-  1428 0000004D EA                  		nop
-  1429 0000004E A9 24               		LDA		#0x24					;0010 0100
-  1430 00000050 85 18               		STA		P_CLK_CPU_Ctrl;			; Set Fcpu = (4MHz) / 16
-  1431 00000052 EA                  		nop
-  1432 00000053 A9 20               		LDA		#0x20					;0010 0000
-  1433 00000055 85 18               		STA		P_CLK_CPU_Ctrl		; //sys=4M cpu=4M/1;
-  1434                              
-  1435                              		%ClrSRAM
-  1436                            1 
-  1437                            1 		%FillSram	#0
-  1438                            2 		
-  1439 00000057 A9 82             2 		LDA		#.LOW.(C_SramAddrStart+2)
-  1440 00000059 85 80             2 		STA		C_SramAddrStart
-  1441 0000005B A9 00             2 		LDA		#.HIGH.(C_SramAddrStart+2)
-  1442 0000005D 85 81             2 		STA		C_SramAddrStart+1
-  1443                            2 		
-  1444 0000005F A2 00             2 		LDX     #0
-  1445 00000061                   2 ?L_FillLoop000F1:
-  1446 00000061 A9 00             2         LDA     #0
-  1447 00000063 81 80             2 		STA     (C_SramAddrStart,X)
-  1448                            2 		
-  1449 00000065 A5 81             2 		LDA     C_SramAddrStart+1
-  1450 00000067 C9 00             2 		CMP     #.HIGH.C_SramAddrEnd
-  1451 00000069 90 06             2 		BCC     ?L_IncSramAddr000F1
-  1452 0000006B A5 80             2 		LDA     C_SramAddrStart
-  1453 0000006D C9 FF             2 		CMP     #.LOW.C_SramAddrEnd
-  1454 0000006F B0 0B             2 		BCS     ?L_End000F1
-  1455                            2 		
-  1456 00000071                   2 ?L_IncSramAddr000F1:    ;Increase sram address
-  1457 00000071 E6 80             2         INC     C_SramAddrStart
-  1458 00000073 D0 EC             2 		BNE     ?L_FillLoop000F1
-  1459 00000075 E6 81             2 		INC     C_SramAddrStart+1
-  1460                            2 		%WatchDogClear
-  1461                            3 
-  1462 00000077 85 0F             3 	   STA	   P_WDT_Flag_Clear
-  1463                            3 
-  1464 00000079 4C 61 00          2         JMP     ?L_FillLoop000F1
-  1465 0000007C                   2 ?L_End000F1:
-  1466                            2         
-  1467 0000007C A9 00             2         LDA     #0
-  1468 0000007E 85 80             2         STA     C_SramAddrStart
-  1469 00000080 85 81             2         STA     C_SramAddrStart+1
-  1470                            2         
-  1471 00000082 A2 00             2         LDX		#00H
-  1472 00000084                   2 ?L_HSRAMloop:
-  1473 00000084 A9 00             2 		LDA		#0
-  1474 00000086 9D 80 01          2 		STA		$180,X
-  1475 00000089 E8                2 		INX	
-  1476 0000008A E0 80             2 		CPX		#80H
-  1477 0000008C D0 F6             2 		BNE		?L_HSRAMloop
-  1478                            2 		
-  1479                            1 
-  1480                              		%InitLCD
-  1481                            1 
-  1482 0000008E A9 25             1 		LDA		#(D_Duty_1_5+D_Bias_1_3+D_ScanEnable)
-  1483 00000090 85 07             1 		STA		P_LCD_Ctrl		;1/11duty,1/4bias,normal scan
-  1484                            1 		
-  1485 00000092 A9 00             1 		LDA     #D_VLCD_28            ;VLCD = 4.5V (max value)
-  1486                            1 ;		LDA		#D_VLCD_VDD
-  1487 00000094 85 19             1 		STA     P_LCD_VLCD_Ctrl
-  1488                            1 	
-  1489                              		%F_InitINT	
-  1490 00000096 A9 07             1 		LDA		#00000111b		;2HZ （bit0~2) for 111 is 4K 			;timeBaseA 2hz timeBaseB 16hz
-  1491 00000098 85 0A             1 		STA		P_TIMER_TimeBase_Sel		
-  1492 0000009A A9 1E             1 		LDA		#D_2KHzInt+D_128HzInt+D_TMBAInt+D_TMBBInt;+D_Timer0Int
-  1493 0000009C 85 0D             1 		STA		P_INT_Ctrl
-  1494 0000009E A9 00             1 		LDA		#00
-  1495 000000A0 85 2D             1 		STA		P_INT_Ctrl2		;disable TMR1 INT
-  1496                            1 ;		LDA		#D_TimerEn+D_TimerFallEdge+D_TimerSrcA_VDD+D_TimerSrcB_LF
-  1497                            1 ;		STA		P_TIMER_Timer0_Ctrl
-  1498                            1 ;		LDA		#0xC8
-  1499                            1 ;		LDA		#0xFC
-  1500                            1 ;		STA		P_TIMER_TM0Data_LB		;8k
-  1501                            1 ;		LDA		#0xFF
-  1502                            1 ;		STA		P_TIMER_TM0Data_HB
-  1503                              		%F_Initinal_IO	
-  1504 000000A2 A9 00             1 		LDA		#00000000b		
-  1505 000000A4 85 00             1 		STA		P_IO_PortA_Dir
-  1506 000000A6 A9 00             1 		LDA		#00000000b		
-  1507 000000A8 85 02             1 		STA		P_IO_PortA_Data	
-  1508                            1 		
-  1509 000000AA A9 00             1 		LDA		#0
-  1510 000000AC 85 14             1 		STA		P_IO_PortB_Attrib
-  1511 000000AE A9 03             1 		LDA		#00000011b		
-  1512 000000B0 85 10             1 		STA		P_IO_PortB_Dir
-  1513 000000B2 A9 00             1 		LDA		#00000000b		
-  1514 000000B4 85 12             1 		STA		P_IO_PortB_Data		;PB1蜂鸣器，PB0背光
-  1515                            1 
-  1516 000000B6 A9 00             1 		LDA		#00H
-  1517 000000B8 85 01             1 		STA		P_IO_PortC_Dir
-  1518 000000BA A9 00             1 		LDA		#00000000b
-  1519 000000BC 85 05             1 		STA		P_IO_PortC_Data	
-  1520                            1 		
-  1521 000000BE A9 00             1 		LDA		#00h
-  1522 000000C0 85 15             1 		STA		P_IO_PortD_Attrib		
-  1523 000000C2 A9 01             1 		LDA		#00000001b		
-  1524 000000C4 85 11             1 		STA		P_IO_PortD_Dir
-  1525 000000C6 8D 00 00          1 		STA		P_IOD_DIR_Map	
-  1526 000000C9 A9 02             1 		LDA		#00000010b
-  1527 000000CB 85 13             1 		STA		P_IO_PortD_Data		
-  1528 000000CD 8D 00 00          1 		STA		R_PortD_Data_Buf
-  1529                            1 
-  1530 000000D0 A9 00             1 		LDA		#00000000b			;PE0/PE1/PE2 全部作为按键输入
-  1531 000000D2 85 0B             1 		STA		P_IO_PortE_Dir
-  1532 000000D4 A9 00             1 		LDA		#00000000b			
-  1533 000000D6 85 03             1 		STA		P_IO_PortE_Data		
-  1534                            1 		
-  1535 000000D8 A9 00             1 		LDA		#00
-  1536 000000DA 85 06             1 		STA		P_IO_Ctrl			;all as normal IO
-  1537 000000DC 20 00 00            		JSR		F_ResetRealTimeClock	
-  1538                              		%bits	R_TimeStatus,AddOthers
-  1539 000000DF AD 00 00          1           lda     R_TimeStatus               ;ex.  
-  1540 000000E2 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
-  1541                            1 		                   ;  10H.0=1
-  1542 000000E4 8D 00 00          1           sta     R_TimeStatus               ;
-  1543                              		; %bits	R_TempFlag,D_WithRTRH
-  1544                              		
-  1545                              		%FillLcdDpram #FFH
-  1546                            1 		
-  1547                            1 		%WatchDogClear
-  1548                            2 
-  1549 000000E7 85 0F             2 	   STA	   P_WDT_Flag_Clear
-  1550                            2 
-  1551 000000E9 A2 00             1 		LDX		#00H
-  1552 000000EB A0 00             1 		LDY		#00H
-  1553 000000ED                   1 ?L_ClrDpramLoop:
-  1554 000000ED A9 FF             1 		LDA     #FFH
-  1555 000000EF 9D 00 3E          1 		STA		$3E00,X
-  1556 000000F2 C8                1 		INY
-  1557 000000F3 C0 04             1 		CPY		#04H
-  1558 000000F5 D0 07             1 		BNE		?L_ClrDpramLoopI
-  1559 000000F7 A0 00             1 		LDY		#00H
-  1560 000000F9 8A                1 		TXA
-  1561 000000FA 18                1 		CLC
-  1562 000000FB 69 0C             1 		ADC		#0CH
-  1563 000000FD AA                1 		TAX
-  1564 000000FE                   1 ?L_ClrDpramLoopI:		
-  1565 000000FE E8                1 		INX
-  1566 000000FF E0 80             1 		CPX		#80H
-  1567 00000101 D0 EA             1 		BNE		?L_ClrDpramLoop
-  1568 00000103 58                  		CLI		
-  1569 00000104 20 00 00            		JSR		F_UpdateTHFromGXHTV4		;上电同步读取一次温湿度
-  1570                              ;		JSR		F_DC_Judge			
-  1571 00000107                     	Wait1_2Sec:
-  1572                              		%WatchDogClear		
-  1573                            1 
-  1574 00000107 85 0F             1 	   STA	   P_WDT_Flag_Clear
-  1575                            1 
-  1576 00000109 A5 00               		LDA		R_2Hz
-  1577 0000010B C9 04               		CMP		#04H
-  1578 0000010D 90 0D               		BCC		Wait1_2Sec_CheckEnd
-  1579 0000010F AD 00 00            		LDA		R_BLTime
-  1580 00000112 D0 08               		BNE		Wait1_2Sec_CheckEnd
-  1581                              		; 先全显 2 秒，最后 1 秒再点亮背光，对齐新的上电时序要求。
-  1582 00000114 20 00 00            		JSR		F_backlightOpen
-  1583 00000117 A9 01               		LDA		#01H
-  1584 00000119 8D 00 00            		STA		R_BLTime
-  1585 0000011C                     	Wait1_2Sec_CheckEnd:
-  1586 0000011C A5 00               		LDA		R_2Hz
-  1587 0000011E C9 06               		CMP		#06H		
-  1588 00000120 90 E5               		BCC		Wait1_2Sec
-  1589 00000122 AD 00 00            		LDA		R_BLTime
-  1590 00000125 F0 11               		BEQ		Jump_DispAll
-  1591                              		; 上电等待环不会跑正常背光倒计时，所以 1 秒到点后手动关灯。
-  1592 00000127 A9 00               		LDA		#00H
-  1593 00000129 8D 00 00            		STA		R_BLTime
-  1594 0000012C 8D 00 00            		STA		R_LEDFlag
-  1595 0000012F 8D 00 00            		STA		R_LEDTemp
-  1596 00000132 A5 12               		LDA		P_IO_PortB_Data
-  1597 00000134 29 FE               		AND		#.not.D_Bit0
-  1598 00000136 85 12               		STA		P_IO_PortB_Data
-  1599                              		
-  1600 00000138                     	Jump_DispAll:
-  1601                              		%FillLcdDpram #00H 
-  1602                            1 		
-  1603                            1 		%WatchDogClear
-  1604                            2 
-  1605 00000138 85 0F             2 	   STA	   P_WDT_Flag_Clear
-  1606                            2 
-  1607 0000013A A2 00             1 		LDX		#00H
-  1608 0000013C A0 00             1 		LDY		#00H
-  1609 0000013E                   1 ?L_ClrDpramLoop:
-  1610 0000013E A9 00             1 		LDA     #00H
-  1611 00000140 9D 00 3E          1 		STA		$3E00,X
-  1612 00000143 C8                1 		INY
-  1613 00000144 C0 04             1 		CPY		#04H
-  1614 00000146 D0 07             1 		BNE		?L_ClrDpramLoopI
-  1615 00000148 A0 00             1 		LDY		#00H
-  1616 0000014A 8A                1 		TXA
-  1617 0000014B 18                1 		CLC
-  1618 0000014C 69 0C             1 		ADC		#0CH
-  1619 0000014E AA                1 		TAX
-  1620 0000014F                   1 ?L_ClrDpramLoopI:		
-  1621 0000014F E8                1 		INX
-  1622 00000150 E0 80             1 		CPX		#80H
-  1623 00000152 D0 EA             1 		BNE		?L_ClrDpramLoop
-  1624                              		; 全显结束再补 1 声 BI，避免和全显开始重叠。
-  1625                              		%bits	R_KeyFlag,D_KeyTone
-  1626 00000154 AD 00 00          1           lda     R_KeyFlag               ;ex.  
-  1627 00000157 09 01             1           ora     #D_KeyTone              ;  %bits 10H,_BIT0
-  1628                            1 		                   ;  10H.0=1
-  1629 00000159 8D 00 00          1           sta     R_KeyFlag               ;
-  1630 0000015C 20 00 00            		JSR		F_PlayKeyTone
-  1631 0000015F 20 00 00            		JSR		F_initSet
-  1632 00000162 20 00 00            		JSR		F_RF_Init
-  1633 00000165 20 00 00            		JSR		F_RF_StartLongReceive
-  1634                              ;		%bits	R_KeyFlag,D_KeyTone	
-  1635                              ;		JSR		F_PlayKeyTone
-  1636                              			
-  1637                              ;================================================
-  1638 00000168                     L_ServiceLoop:
-  1639                              		%WatchDogClear
-  1640                            1 
-  1641 00000168 85 0F             1 	   STA	   P_WDT_Flag_Clear
-  1642                            1 
-  1643 0000016A 20 00 00            		JSR		F_KeyScan		;按键扫描
-  1644 0000016D 20 00 00            		JSR		F_PlayKeyTone	;按键音
-  1645                              	
-  1646                              ;		JSR		F_DC_Judge
-  1647 00000170 20 00 00            		JSR		F_Display
-  1648                              		
-  1649 00000173                     	?L_NoDispNormal:
-  1650 00000173 A5 00               		LDA		R_2Hz		;2Hz唤醒
-  1651 00000175 F0 03               		BEQ		$+5
-  1652 00000177 4C 20 00            		JMP		F_2HzWakeUp
-  1653 0000017A AD 00 00            		LDA		R_KeyValue		;按键
-  1654 0000017D D0 E9               		BNE		L_ServiceLoop
-  1655 0000017F AD 00 00            		LDA		R_KeyTemp
-  1656 00000182 D0 E4               		BNE		L_ServiceLoop
-  1657                              							
-  1658 00000184 A5 01               		LDA		R_128Hz
-  1659 00000186 F0 03               		BEQ		$+5
-  1660 00000188 4C 3A 00            		JMP		F_128HzWakeUp
-  1661                              		
-  1662 0000018B                     	?Next:	
-  1663                              		%btst	R_LEDFlag,D_LED_ON,L_ServiceLoop	
-  1664 0000018B AD 00 00          1           lda     R_LEDFlag               ;ex.   
-  1665 0000018E 29 08             1           and     #D_LED_ON              ;  %btst 10H,_BIT0,N
-  1666 00000190 D0 D6             1           bne     L_ServiceLoop               ;  if(10H.0=1) goto N 
-  1667                              		%btst	R_KeyFlag,D_ToneOn,L_ServiceLoop		
-  1668 00000192 AD 00 00          1           lda     R_KeyFlag               ;ex.   
-  1669 00000195 29 20             1           and     #D_ToneOn              ;  %btst 10H,_BIT0,N
-  1670 00000197 D0 CF             1           bne     L_ServiceLoop               ;  if(10H.0=1) goto N 
-  1671                              
-  1672 00000199 AD 00 00            		LDA		R_SoundOn
-  1673 0000019C D0 CA               		BNE		L_ServiceLoop
-  1674                              		; RF 正在长接收或开着当前收包窗口时不能睡眠，
-  1675                              		; 否则 PD1 上的边沿还没收完，主循环就已经跳进低功耗入口。
-  1676 0000019E AD 00 00            		LDA		R_RFStatus
-  1677 000001A1 29 09               		AND		#(D_RFLongRecv+D_RFRecvBusy)
-  1678 000001A3 D0 C3               		BNE		L_ServiceLoop
-  1679                              	
-  1680 000001A5                     	L_Enter_Sleep2Hz:
-  1681 000001A5 A9 21               		LDA		#0x21
-  1682 000001A7 85 18               		STA		P_CLK_CPU_Ctrl		; //before enter sleep mode, sys=4M CPU=4M/2;	
-  1683                              
-  1684 000001A9 A5 04               		LDA		P_IO_PortE_DataLatch		
-  1685 000001AB A9 00               		LDA		#00h
-  1686 000001AD 85 08               		STA		P_WAKEUP_Ctrl	;clear wakeup flag
-  1687                              			
-  1688 000001AF A9 03               		LDA		#D_WakeupTMBA+D_WakeupKey	;+D_Wakeup128Hz
-  1689 000001B1 85 08               		STA		P_WAKEUP_Ctrl
-  1690 000001B3 85 09               		STA		P_SYSTEM_Ctrl
-  1691 000001B5 EA                  		NOP
-  1692 000001B6 EA                  		NOP
-  1693 000001B7 4C 00 00            		JMP		V_RESET	
-  1694                              
-  1695                              .END
+  1330                              
+  1331                              
+  1332                              
+  1333                              ;==========================================
+  1334                              ; External declare area
+  1335                              ;==========================================
+  1336                              .PUBLIC	R_2Hz 
+  1337                              .PUBLIC	R_128Hz
+  1338                              .PUBLIC	R_INTFlag
+  1339                              .PUBLIC F_2HzWakeUp
+  1340                              .PUBLIC Wait1_2Sec
+  1341                              
+  1342                              ;==========================================
+  1343                              ; Public declare area
+  1344                              ;==========================================
+  1345                              .PUBLIC	L_PowerOn
+  1346                              .PUBLIC V_RESET
+  1347                              ;.PUBLIC		IOD_Attmap	
+  1348                              ;.PUBLIC		IOD_Dirmap	
+  1349                              ;.PUBLIC		IOD_Datmap
+  1350                              ;==========================================
+  1351                              ;Variable RAM declare area
+  1352                              ;==========================================
+  1353 00000000                     .PAGE0 ; PAGE指定列在一页上的最大列数和一行上最大的字符数
+  1354 00000000 FF                  R_2Hz		ds	1
+  1355 00000001 FF                  R_128Hz		ds	1
+  1356 00000002 FF                  R_INTFlag	ds	1
+  1357                              
+  1358                              ;IOD_Attmap	ds	1
+  1359                              ;IOD_Dirmap	ds	1
+  1360                              ;IOD_Datmap	ds	1
+  1361                              ;==========================================
+  1362                              ; code starting 
+  1363                              ;==========================================
+  1364 00000000                     .CODE
+  1365 00000000                     V_RESET:
+  1366                              ; User_Code_Start:
+  1367                              ; Code_Start:
+  1368 00000000 78                  		SEI					; 置中断禁止位
+  1369 00000001 A2 FF               		LDX		#FFH		;
+  1370 00000003 9A                  		TXS					;x-->栈指针
+  1371                              
+  1372 00000004 A5 08               		LDA		P_WAKEUP_Ctrl	;唤醒源代码控制寄存器
+  1373 00000006 AA                  		TAX
+  1374 00000007 29 03               		AND		#(D_WakeupKey+D_WakeupTMBA);+D_Wakeup128Hz) ;WakeupKey+TimeBaseA wake up(1/2hz)---------开启128Hz唤醒
+  1375 00000009 F0 36               		BEQ		L_PowerOn        ;No Wakeup     
+  1376                              		
+  1377 0000000B A9 00                       LDA		#00
+  1378 0000000D 85 08               		STA		P_WAKEUP_Ctrl    ;clear wakeup flag
+  1379                              			
+  1380 0000000F A9 20               		LDA		#0x20
+  1381 00000011 85 18               		STA		P_CLK_CPU_Ctrl		; //after sleep mode wake up, sys=4M CPU=4M/1;			
+  1382                              
+  1383 00000013 8A                  		TXA
+  1384 00000014 29 02               		AND		#D_WakeupTMBA  
+  1385                              ;   	BNE		F_2HzWakeUp
+  1386 00000016 F0 03               		BEQ		F_keyWakeup    ;Judge Wakeup
+  1387 00000018 4C 20 00            		JMP		F_2HzWakeUp
+  1388                              ;		TXA		
+  1389                              ;		AND		#D_Wakeup128Hz
+  1390                              ;		BNE		F_128HzWakeUp
+  1391                              ;		
+  1392                              
+  1393                              ; 输入: 按键唤醒事件。
+  1394                              ; 输出: 退出低功耗并返回主服务循环。
+  1395                              ; 调试: 看按键唤醒后是否直接回到 L_ServiceLoop。
+  1396 0000001B                     F_keyWakeup:
+  1397                              ;       LDA		#D_TBL_Clr
+  1398                              ;		STA		P_INT_Clear1   
+  1399 0000001B 58                  		CLI
+  1400 0000001C EA                  		nop
+  1401 0000001D 4C 60 01            		JMP		L_ServiceLoop
+  1402                              		
+  1403                              ; 输入: 2Hz 半秒唤醒事件。
+  1404                              ; 输出: 推进键值/RTC/RF/低电/室内采样等半秒业务后返回主循环。
+  1405                              ; 调试: 看 R_2Hz 清零后，各半秒服务函数是否按预期被依次调用。
+  1406 00000020                     F_2HzWakeUp:                           ;半秒 0.5s	  
+  1407 00000020 A9 00                 		LDA		#00
+  1408 00000022 85 00                 		STA		R_2Hz
+  1409 00000024 A9 08                 		LDA		#D_TMBAInt
+  1410 00000026 85 43               		STA		P_INT_TimeBaseA_Clear
+  1411 00000028 20 00 00              		JSR		F_2Hz_Cnt
+  1412 0000002B 20 00 00            	    JSR		F_RealTimeClock   ;rtc		
+  1413 0000002E 20 00 00            	    JSR		F_RF_ServiceHalfSec	; RF 同步窗口与双帧确认按 0.5 秒调度
+  1414 00000031 20 00 00            	    JSR		F_CheckLowBattery	; 规格要求显示本机低电图标，检测逻辑接回半秒节拍
+  1415 00000034 20 00 00            	    JSR	    F_JudgeRFC		;温湿度检测	    	
+  1416 00000037 4C 60 01            	    JMP		L_ServiceLoop	
+  1417                              	    
+  1418                              ; 输入: 128Hz 唤醒事件。
+  1419                              ; 输出: 清掉 128Hz 标志后返回主循环。
+  1420                              ; 调试: 看 R_128Hz 是否被及时清零，避免重复进入该路径。
+  1421 0000003A                     F_128HzWakeUp:
+  1422 0000003A A9 00               		LDA		#00
+  1423 0000003C 85 01               		STA		R_128Hz
+  1424                              ;		JSR		F_128Hz_Cnt
+  1425 0000003E 4C 60 01            		JMP		L_ServiceLoop
+  1426                              		
+  1427                              ; 输入: 上电复位后的芯片初始状态。
+  1428                              ; 输出: 完成系统/IO/LCD/RTC 初始化，跑满全显与背光时序后进入主服务循环。
+  1429                              ; 调试: 看全显 3 秒、最后 1 秒背光、BI、RF 长接收启动是否按顺序发生。
+  1430 00000041                     L_PowerOn:  ;---------------------;POWER UP	开机		
+  1431                              		%InitSystem
+  1432 00000041 A9 00             1 		LDA		#0
+  1433 00000043 85 0E             1 		STA		P_Reset_Status	;Clear AC key reset flag
+  1434                            1 		%Enable32KLF
+  1435                            2 
+  1436 00000045 A9 00             2 		LDA		#D_LFEnable
+  1437 00000047 85 0C             2 		STA		P_CLK_32768_En
+  1438                            2 
+  1439                              		
+  1440                              		;CPU时钟选择
+  1441 00000049 A9 44               		LDA		#0x44					;0100 0100
+  1442 0000004B 85 18               		STA		P_CLK_CPU_Ctrl ;		; Set Fcpu = (500KHz) / 16
+  1443 0000004D EA                  		nop
+  1444 0000004E A9 24               		LDA		#0x24					;0010 0100
+  1445 00000050 85 18               		STA		P_CLK_CPU_Ctrl;			; Set Fcpu = (4MHz) / 16
+  1446 00000052 EA                  		nop
+  1447 00000053 A9 20               		LDA		#0x20					;0010 0000
+  1448 00000055 85 18               		STA		P_CLK_CPU_Ctrl		; //sys=4M cpu=4M/1;
+  1449                              
+  1450                              		%ClrSRAM
+  1451                            1 
+  1452                            1 		%FillSram	#0
+  1453                            2 		
+  1454 00000057 A9 82             2 		LDA		#.LOW.(C_SramAddrStart+2)
+  1455 00000059 85 80             2 		STA		C_SramAddrStart
+  1456 0000005B A9 00             2 		LDA		#.HIGH.(C_SramAddrStart+2)
+  1457 0000005D 85 81             2 		STA		C_SramAddrStart+1
+  1458                            2 		
+  1459 0000005F A2 00             2 		LDX     #0
+  1460 00000061                   2 ?L_FillLoop000F1:
+  1461 00000061 A9 00             2         LDA     #0
+  1462 00000063 81 80             2 		STA     (C_SramAddrStart,X)
+  1463                            2 		
+  1464 00000065 A5 81             2 		LDA     C_SramAddrStart+1
+  1465 00000067 C9 00             2 		CMP     #.HIGH.C_SramAddrEnd
+  1466 00000069 90 06             2 		BCC     ?L_IncSramAddr000F1
+  1467 0000006B A5 80             2 		LDA     C_SramAddrStart
+  1468 0000006D C9 FF             2 		CMP     #.LOW.C_SramAddrEnd
+  1469 0000006F B0 0B             2 		BCS     ?L_End000F1
+  1470                            2 		
+  1471 00000071                   2 ?L_IncSramAddr000F1:    ;Increase sram address
+  1472 00000071 E6 80             2         INC     C_SramAddrStart
+  1473 00000073 D0 EC             2 		BNE     ?L_FillLoop000F1
+  1474 00000075 E6 81             2 		INC     C_SramAddrStart+1
+  1475                            2 		%WatchDogClear
+  1476                            3 
+  1477 00000077 85 0F             3 	   STA	   P_WDT_Flag_Clear
+  1478                            3 
+  1479 00000079 4C 61 00          2         JMP     ?L_FillLoop000F1
+  1480 0000007C                   2 ?L_End000F1:
+  1481                            2         
+  1482 0000007C A9 00             2         LDA     #0
+  1483 0000007E 85 80             2         STA     C_SramAddrStart
+  1484 00000080 85 81             2         STA     C_SramAddrStart+1
+  1485                            2         
+  1486 00000082 A2 00             2         LDX		#00H
+  1487 00000084                   2 ?L_HSRAMloop:
+  1488 00000084 A9 00             2 		LDA		#0
+  1489 00000086 9D 80 01          2 		STA		$180,X
+  1490 00000089 E8                2 		INX	
+  1491 0000008A E0 80             2 		CPX		#80H
+  1492 0000008C D0 F6             2 		BNE		?L_HSRAMloop
+  1493                            2 		
+  1494                            1 
+  1495                              		%InitLCD
+  1496                            1 
+  1497 0000008E A9 25             1 		LDA		#(D_Duty_1_5+D_Bias_1_3+D_ScanEnable)
+  1498 00000090 85 07             1 		STA		P_LCD_Ctrl		;1/11duty,1/4bias,normal scan
+  1499                            1 		
+  1500 00000092 A9 00             1 		LDA     #D_VLCD_28            ;VLCD = 4.5V (max value)
+  1501                            1 ;		LDA		#D_VLCD_VDD
+  1502 00000094 85 19             1 		STA     P_LCD_VLCD_Ctrl
+  1503                            1 	
+  1504                              		%F_InitINT	
+  1505 00000096 A9 07             1 		LDA		#00000111b		;2HZ （bit0~2) for 111 is 4K 			;timeBaseA 2hz timeBaseB 16hz
+  1506 00000098 85 0A             1 		STA		P_TIMER_TimeBase_Sel		
+  1507 0000009A A9 1C             1 		LDA		#D_128HzInt+D_TMBAInt+D_TMBBInt;D_Timer0Int+
+  1508 0000009C 85 0D             1 		STA		P_INT_Ctrl
+  1509                            1 ;		LDA		#00
+  1510                            1 ;		STA		P_INT_Ctrl2		;disable TMR1 INT
+  1511                            1 ;		LDA		#D_TimerEn+D_TimerFallEdge+D_TimerSrcA_VDD+D_TimerSrcB_LF
+  1512                            1 ;		STA		P_TIMER_Timer0_Ctrl
+  1513                            1 ;		LDA		#0FCH
+  1514                            1 ;		STA		P_TIMER_TM0Data_LB		; Timer0 reload = FFFCh, scope now shows about 4.096kHz IRQ on this board.
+  1515                            1 ;		LDA		#0FFH
+  1516                            1 ;		STA		P_TIMER_TM0Data_HB
+  1517                            1 ;		STA		P_TIMER_TM0Load_Ctrl
+  1518                              		%F_Initinal_IO	
+  1519 0000009E A9 00             1 		LDA		#00000000b		
+  1520 000000A0 85 00             1 		STA		P_IO_PortA_Dir
+  1521 000000A2 A9 00             1 		LDA		#00000000b		
+  1522 000000A4 85 02             1 		STA		P_IO_PortA_Data	
+  1523                            1 		
+  1524 000000A6 A9 00             1 		LDA		#0
+  1525 000000A8 85 14             1 		STA		P_IO_PortB_Attrib
+  1526 000000AA A9 03             1 		LDA		#00000011b		
+  1527 000000AC 85 10             1 		STA		P_IO_PortB_Dir
+  1528 000000AE A9 00             1 		LDA		#00000000b		
+  1529 000000B0 85 12             1 		STA		P_IO_PortB_Data		;PB1蜂鸣器，PB0背光
+  1530                            1 
+  1531 000000B2 A9 80             1 		LDA		#C_PC7Dir
+  1532 000000B4 85 01             1 		STA		P_IO_PortC_Dir
+  1533 000000B6 A9 00             1 		LDA		#00000000b
+  1534 000000B8 85 05             1 		STA		P_IO_PortC_Data		; PC7 debug output, default low.
+  1535                            1 		
+  1536 000000BA A9 00             1 		LDA		#00h
+  1537 000000BC 85 15             1 		STA		P_IO_PortD_Attrib		
+  1538 000000BE A9 01             1 		LDA		#00000001b		
+  1539 000000C0 85 11             1 		STA		P_IO_PortD_Dir
+  1540 000000C2 8D 00 00          1 		STA		P_IOD_DIR_Map	
+  1541 000000C5 A9 02             1 		LDA		#00000010b
+  1542 000000C7 85 13             1 		STA		P_IO_PortD_Data		
+  1543 000000C9 8D 00 00          1 		STA		R_PortD_Data_Buf
+  1544                            1 
+  1545 000000CC A9 00             1 		LDA		#00000000b			;PE0/PE1/PE2 全部作为按键输入
+  1546 000000CE 85 0B             1 		STA		P_IO_PortE_Dir
+  1547 000000D0 A9 00             1 		LDA		#00000000b			
+  1548 000000D2 85 03             1 		STA		P_IO_PortE_Data		
+  1549                            1 		
+  1550 000000D4 A9 00             1 		LDA		#00
+  1551 000000D6 85 06             1 		STA		P_IO_Ctrl			;all as normal IO
+  1552 000000D8 20 00 00            		JSR		F_ResetRealTimeClock	
+  1553                              		%bits	R_TimeStatus,AddOthers
+  1554 000000DB AD 00 00          1           lda     R_TimeStatus               ;ex.  
+  1555 000000DE 09 10             1           ora     #AddOthers              ;  %bits 10H,_BIT0
+  1556                            1 		                   ;  10H.0=1
+  1557 000000E0 8D 00 00          1           sta     R_TimeStatus               ;
+  1558 000000E3 A9 40               		LDA		#D_LVD_24		; 上电/唤醒后统一把低电检测门槛拉到 2.4V
+  1559 000000E5 85 1B               		STA		P_LVD_Ctrl
+  1560                              		
+  1561                              		%FillLcdDpram #FFH
+  1562                            1 		
+  1563                            1 		%WatchDogClear
+  1564                            2 
+  1565 000000E7 85 0F             2 	   STA	   P_WDT_Flag_Clear
+  1566                            2 
+  1567 000000E9 A2 00             1 		LDX		#00H
+  1568 000000EB A0 00             1 		LDY		#00H
+  1569 000000ED                   1 ?L_ClrDpramLoop:
+  1570 000000ED A9 FF             1 		LDA     #FFH
+  1571 000000EF 9D 00 3E          1 		STA		$3E00,X
+  1572 000000F2 C8                1 		INY
+  1573 000000F3 C0 04             1 		CPY		#04H
+  1574 000000F5 D0 07             1 		BNE		?L_ClrDpramLoopI
+  1575 000000F7 A0 00             1 		LDY		#00H
+  1576 000000F9 8A                1 		TXA
+  1577 000000FA 18                1 		CLC
+  1578 000000FB 69 0C             1 		ADC		#0CH
+  1579 000000FD AA                1 		TAX
+  1580 000000FE                   1 ?L_ClrDpramLoopI:		
+  1581 000000FE E8                1 		INX
+  1582 000000FF E0 80             1 		CPX		#80H
+  1583 00000101 D0 EA             1 		BNE		?L_ClrDpramLoop
+  1584 00000103 58                  		CLI		
+  1585 00000104 20 00 00            		JSR		F_UpdateTHFromGXHTV4		;上电同步读取一次温湿度		
+  1586 00000107                     	Wait1_2Sec:
+  1587                              		%WatchDogClear		
+  1588                            1 
+  1589 00000107 85 0F             1 	   STA	   P_WDT_Flag_Clear
+  1590                            1 
+  1591 00000109 A5 00               		LDA		R_2Hz
+  1592 0000010B C9 04               		CMP		#04H
+  1593 0000010D 90 F8               		BCC		Wait1_2Sec
+  1594                              ;		LDA		R_BLTime
+  1595                              ;		BNE		Wait1_2Sec_CheckEnd
+  1596                              		; 先全显 2 秒，最后 1 秒再点亮背光，对齐新的上电时序要求。
+  1597 0000010F 20 00 00            		JSR		F_backlightOpen
+  1598 00000112 A9 01               		LDA		#01H
+  1599 00000114 8D 00 00            		STA		R_BLTime
+  1600 00000117                     	Wait1_2Sec_CheckEnd:
+  1601                              		%WatchDogClear	
+  1602                            1 
+  1603 00000117 85 0F             1 	   STA	   P_WDT_Flag_Clear
+  1604                            1 
+  1605 00000119 A5 00               		LDA		R_2Hz
+  1606 0000011B C9 06               		CMP		#06H		
+  1607 0000011D 90 F8               		BCC		Wait1_2Sec_CheckEnd
+  1608                              ;		LDA		R_BLTime
+  1609                              ;		BEQ		Jump_DispAll
+  1610                              		; 上电等待环不会跑正常背光倒计时，所以 1 秒到点后手动关灯。
+  1611 0000011F A9 00               		LDA		#00H
+  1612 00000121 8D 00 00            		STA		R_BLTime
+  1613 00000124 8D 00 00            		STA		R_LEDFlag
+  1614 00000127 8D 00 00            		STA		R_LEDTemp
+  1615 0000012A A5 12               		LDA		P_IO_PortB_Data
+  1616 0000012C 29 FE               		AND		#.not.D_Bit0
+  1617 0000012E 85 12               		STA		P_IO_PortB_Data
+  1618                              		
+  1619 00000130                     	Jump_DispAll:
+  1620                              		%FillLcdDpram #00H 
+  1621                            1 		
+  1622                            1 		%WatchDogClear
+  1623                            2 
+  1624 00000130 85 0F             2 	   STA	   P_WDT_Flag_Clear
+  1625                            2 
+  1626 00000132 A2 00             1 		LDX		#00H
+  1627 00000134 A0 00             1 		LDY		#00H
+  1628 00000136                   1 ?L_ClrDpramLoop:
+  1629 00000136 A9 00             1 		LDA     #00H
+  1630 00000138 9D 00 3E          1 		STA		$3E00,X
+  1631 0000013B C8                1 		INY
+  1632 0000013C C0 04             1 		CPY		#04H
+  1633 0000013E D0 07             1 		BNE		?L_ClrDpramLoopI
+  1634 00000140 A0 00             1 		LDY		#00H
+  1635 00000142 8A                1 		TXA
+  1636 00000143 18                1 		CLC
+  1637 00000144 69 0C             1 		ADC		#0CH
+  1638 00000146 AA                1 		TAX
+  1639 00000147                   1 ?L_ClrDpramLoopI:		
+  1640 00000147 E8                1 		INX
+  1641 00000148 E0 80             1 		CPX		#80H
+  1642 0000014A D0 EA             1 		BNE		?L_ClrDpramLoop
+  1643 0000014C 20 00 00            		JSR		F_initSet
+  1644 0000014F 20 00 00            		JSR		F_RF_Init
+  1645 00000152 20 00 00            		JSR		F_RF_StartLongReceive
+  1646                              		%bits	R_KeyFlag,D_KeyTone	
+  1647 00000155 AD 00 00          1           lda     R_KeyFlag               ;ex.  
+  1648 00000158 09 01             1           ora     #D_KeyTone              ;  %bits 10H,_BIT0
+  1649                            1 		                   ;  10H.0=1
+  1650 0000015A 8D 00 00          1           sta     R_KeyFlag               ;
+  1651 0000015D 20 00 00            		JSR		F_PlayKeyTone
+  1652                              			
+  1653                              ;================================================
+  1654 00000160                     L_ServiceLoop:
+  1655                              		%WatchDogClear
+  1656                            1 
+  1657 00000160 85 0F             1 	   STA	   P_WDT_Flag_Clear
+  1658                            1 
+  1659 00000162 20 00 00            		JSR		F_RF_ServicePendingParse
+  1660 00000165 20 00 00            		JSR		F_KeyScan		;按键扫描
+  1661 00000168 20 00 00            		JSR		F_PlayKeyTone	;按键音
+  1662 0000016B 20 00 00            		JSR		F_Display
+  1663                              		
+  1664 0000016E                     	?L_NoDispNormal:
+  1665 0000016E A5 00               		LDA		R_2Hz		;2Hz唤醒
+  1666 00000170 F0 03               		BEQ		$+5
+  1667 00000172 4C 20 00            		JMP		F_2HzWakeUp
+  1668 00000175 AD 00 00            		LDA		R_KeyValue		;按键
+  1669 00000178 D0 E6               		BNE		L_ServiceLoop
+  1670 0000017A AD 00 00            		LDA		R_KeyTemp
+  1671 0000017D D0 E1               		BNE		L_ServiceLoop
+  1672                              							
+  1673 0000017F A5 01               		LDA		R_128Hz
+  1674 00000181 F0 03               		BEQ		$+5
+  1675 00000183 4C 3A 00            		JMP		F_128HzWakeUp
+  1676                              		
+  1677                              
+  1678 00000186                     	?Next_CheckSleepGate:
+  1679                              		%btst	R_LEDFlag,D_LED_ON,L_ServiceLoop	
+  1680 00000186 AD 00 00          1           lda     R_LEDFlag               ;ex.   
+  1681 00000189 29 08             1           and     #D_LED_ON              ;  %btst 10H,_BIT0,N
+  1682 0000018B D0 D3             1           bne     L_ServiceLoop               ;  if(10H.0=1) goto N 
+  1683                              		%btst	R_KeyFlag,D_ToneOn,L_ServiceLoop		
+  1684 0000018D AD 00 00          1           lda     R_KeyFlag               ;ex.   
+  1685 00000190 29 20             1           and     #D_ToneOn              ;  %btst 10H,_BIT0,N
+  1686 00000192 D0 CC             1           bne     L_ServiceLoop               ;  if(10H.0=1) goto N 
+  1687                              
+  1688 00000194 AD 00 00            		LDA		R_SoundOn
+  1689 00000197 D0 C7               		BNE		L_ServiceLoop
+  1690                              		; RF 正在长接收或开着当前收包窗口时不能睡眠，
+  1691                              		; 否则 PD1 上的边沿还没收完，主循环就已经跳进低功耗入口。
+  1692 00000199 AD 00 00            		LDA		R_RFStatus
+  1693 0000019C 29 09               		AND		#(D_RFLongRecv+D_RFRecvBusy)
+  1694 0000019E D0 C0               		BNE		L_ServiceLoop
+  1695                              	
+  1696 000001A0                     	L_Enter_Sleep2Hz:
+  1697 000001A0 A9 21               		LDA		#0x21
+  1698 000001A2 85 18               		STA		P_CLK_CPU_Ctrl		; //before enter sleep mode, sys=4M CPU=4M/2;	
+  1699                              
+  1700 000001A4 A5 04               		LDA		P_IO_PortE_DataLatch		
+  1701 000001A6 A9 00               		LDA		#00h
+  1702 000001A8 85 08               		STA		P_WAKEUP_Ctrl	;clear wakeup flag
+  1703                              			
+  1704 000001AA A9 03               		LDA		#D_WakeupTMBA+D_WakeupKey	;+D_Wakeup128Hz
+  1705 000001AC 85 08               		STA		P_WAKEUP_Ctrl
+  1706 000001AE 85 09               		STA		P_SYSTEM_Ctrl
+  1707 000001B0 EA                  		NOP
+  1708 000001B1 EA                  		NOP
+  1709 000001B2 4C 00 00            		JMP		V_RESET	
+  1710                              
+  1711                              .END
 0 Error(s), 0 Warning(s).

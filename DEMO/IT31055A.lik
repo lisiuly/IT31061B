@@ -1,4 +1,0 @@
-locate: PAGE0 at 0080h reference
-locate:RFCRAM	at 0180h reference
-locate: CODE  at E000H	;User cannot modify it
-locate: VECTOR at FFFCH

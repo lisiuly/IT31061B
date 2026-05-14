@@ -1,4 +1,4 @@
-;==================================================================================
+;==========================================================================
 ; Name                  : RF.asm
 ; Applied Body          : GPL813X
 ; Programmer            : 
@@ -36,11 +36,12 @@ D_RFValid		equ	01h
 D_RFLowBat		equ	02h
 D_RFLost			equ	04h
 D_RFNeedPair		equ	08h
+D_RFManualRetry		equ	10h
 
 C_RFLongRecv3Min		equ	180
 C_RFAutoSwitch4Sec		equ	4
-C_RFRecvWindow2SecTick	equ	4		; 最新协议已改回提前 2 秒开接收，窗口总长 2 秒。
-; C_RFRecvWindow3Sec		equ	6		; 旧一版规格写过 3 秒总窗口，现已不用，保留注释。
+C_RFRecvWindow4SecTick	equ	8		; 提前 2 秒开接收保持不变，窗口总长改为 4 秒。
+; C_RFRecvWindow2Sec		equ	4		; 旧配置是 2 秒总窗口，现已不用，保留注释。
 C_RFSyncAdvance2SecTick	equ	4		; 0.5 秒粒度，提前 2 秒开窗。
 ; C_RFSyncAdvance1p5Sec	equ	3		; 旧一版规格写过 1.5 秒提前，现已不用，保留注释。
 C_RFSyncIdle			equ	0FFH
@@ -53,9 +54,10 @@ C_RFCh3Sync79Tick		equ	158		; 79 秒，0.5 秒粒度。
 C_RFFail3Times		equ	3
 C_RFFail60Min			equ	60
 C_RFFail120Min			equ	120
-C_RFFailRetry180Min		equ	180
-C_RFFailRetry183Min		equ	183		; 120 分钟后会立刻跑一轮 3 分钟长接收，预装 183 可保证超时后还剩完整 180 分钟。
-C_RFFinalRetryStage		equ		03H
+C_RFFailRetry63Min		equ	63		; 每次 3 分钟长接收结束后，还剩完整 60 分钟才开下一轮小时重试。
+C_RFHourlyRetryStageFirst	equ	02H
+C_RFHourlyRetryStageLast	equ	04H
+C_RFFinalRetryStage		equ		05H
 
 ; 室外趋势逻辑与 Alarm 的室内趋势保持同一门限：
 ; 连续 60 个有效样本都没有跨阈值则回到平；
@@ -76,14 +78,16 @@ C_RFTrendHumOver5		equ	06H
 ; Bit1 = 高500us + 低1000us
 C_RFPacketBits36		equ	36
 
-; RF收码低脉宽按 50us tick 喂入:
-; 低电平 2ms-2.5ms = 40~50 tick, 高电平 1-1.25ms = 20~25 tick, 停止位 4~5ms = 80~100 tick
-C_RFBit1LowMinTick		equ	20
-C_RFBit1LowMaxTick		equ	35
-C_RFBit0LowMinTick		equ	40
-C_RFBit0LowMaxTick		equ	55
-C_RFStopLowMinTick		equ	80
-C_RFStopLowMaxTick		equ	100
+; RF收码低脉宽按 Timer0 实测约 4.096kHz 的样本数喂入:
+; bit1 约 4~5 sample，bit0 约 8~9 sample，停止位约 16~20 sample。
+C_RFBitHighMinSample		equ	01H
+C_RFBitHighMaxSample		equ	03H
+C_RFBit1LowMinSample		equ	03H
+C_RFBit1LowMaxSample		equ	06H
+C_RFBit0LowMinSample		equ	07H
+C_RFBit0LowMaxSample		equ	0AH
+C_RFStopLowMinSample		equ	0FH
+C_RFStopLowMaxSample		equ	16H
 
 ;==========================================
 ; External declare area
@@ -156,13 +160,14 @@ C_RFStopLowMaxTick		equ	100
 .PUBLIC		F_RF_StopLongReceive
 .PUBLIC		F_RF_ServiceHalfSec
 .PUBLIC		F_RF_Service1Sec
+.PUBLIC		F_RF_ServicePendingParse
 .PUBLIC		F_RF_OnReceiveOK
 .PUBLIC		F_RF_OnReceiveFail
 .PUBLIC		F_RF_ResetPacketBuffer
 .PUBLIC		F_RF_AppendBit0
 .PUBLIC		F_RF_AppendBit1
 .PUBLIC		F_RF_FeedLowPulseTicks
-.PUBLIC		F_RF_Service2KHzSample
+.PUBLIC		F_RF_Service8KHzSample
 .PUBLIC		F_RF_ParsePacket
 
 ;==========================================
@@ -171,7 +176,7 @@ C_RFStopLowMaxTick		equ	100
 ; 主运行链:
 ; 1. F_RF_Init: 上电后清状态、清收码缓存、三路通道置 NeedPair。
 ; 2. F_RF_ServiceHalfSec: 每 0.5 秒跑接收窗口/同步窗口；每两次再进一次 F_RF_Service1Sec。
-; 3. F_RF_Service2KHzSample: 在 2kHz 中断里采样 PD1，把连续低电平长度换算成 50us tick。
+; 3. F_RF_Service8KHzSample: 函数名沿用旧名，当前实际是在 Timer0 约 4.096kHz IRQ 里按样本数抓低脉宽。
 ; 4. F_RF_FeedLowPulseTicks: 先认 4~5ms 停止位作为一帧起点，不认前导码；之后把 1ms/2ms 低脉宽翻成 bit1/bit0。
 ; 5. F_RF_ParsePacket: 收满 36bit 后先做双帧一致确认，再按包内通道和已绑定 ID 判断是否落库。
 ; 6. F_RF_LoadPacketToRequestChannel: 把 ID/温度/湿度/低电信息写入目标通道缓存。
@@ -193,7 +198,7 @@ C_RFStopLowMaxTick		equ	100
 ; R_RFSamplePrev / R_RFLowSampleCnt / R_RFPulseTicks: PD1 采样与低脉宽换算链。
 ; R_RFCaptureActive / R_RFBitCnt / R_RFPacket0~4: 当前帧是否已锁定、已收 bit 数、解包前原始缓存。
 ; R_RFPendingValid / R_RFPending0~4: 上一帧缓存，用来做“双帧一致确认”。
-; R_RF1Flags~R_RF3Flags: bit0 Valid, bit1 LowBat, bit2 Lost, bit3 NeedPair。
+; R_RF1Flags~R_RF3Flags: bit0 Valid, bit1 LowBat, bit2 Lost, bit3 NeedPair, bit4 ManualRetry。
 ; R_RF1IdL~R_RF3IdL: 每个通道绑定过的发射器 ID。
 ; R_RF1TempH/L、R_RF1Hum ...: 通道最终温湿度结果。
 ; R_RFTrendFlags: 三个室外通道各自的趋势状态位，布局与 Alarm 的室内趋势位一致。
@@ -223,7 +228,7 @@ C_RFStopLowMaxTick		equ	100
 ; F_RF_IsRequestChannelPacketAccepted: 按 NeedPair 或已绑定 ID 决定当前包是否允许写入。
 ; F_RF_ResetPacketBuffer / F_RF_AppendBit0 / F_RF_AppendBit1: 维护 36bit 当前帧缓存。
 ; F_RF_FeedLowPulseTicks: 识别停止位和 bit0/bit1 低脉宽。
-; F_RF_Service2KHzSample: 在中断中测脉宽并送入解码入口。
+; F_RF_Service8KHzSample: 在 Timer0 中断中测脉宽并送入解码入口。
 ; F_RF_ParsePacket: 双帧确认后判通道、验 ID、落库、置有效。
 ; F_RF_BuildPacketBitMask / F_RF_SetBitInPacket0~4: 把某个 bit1 写进对应 Packet 字节。
 ; F_RF_LoadPacketToRequestChannel: 从 Packet0~4 提取 ID、温度、湿度、电池状态到通道 RAM。
@@ -243,24 +248,6 @@ R_RFRecvWindowTm	ds	1
 R_RF1SyncTm			ds	1
 R_RF2SyncTm			ds	1
 R_RF3SyncTm			ds	1
-
-R_RFBitCnt			ds	1
-R_RFPacket0			ds	1
-R_RFPacket1			ds	1
-R_RFPacket2			ds	1
-R_RFPacket3			ds	1
-R_RFPacket4			ds	1
-R_RFPacket5			ds	1
-R_RFPendingValid	ds	1
-R_RFPending0		ds	1
-R_RFPending1		ds	1
-R_RFPending2		ds	1
-R_RFPending3		ds	1
-R_RFPending4		ds	1
-R_RFCaptureActive	ds	1
-R_RFPulseTicks		ds	1
-R_RFSamplePrev		ds	1
-R_RFLowSampleCnt	ds	1
 R_RFHalfSecDiv		ds	1
 R_RFMinuteStamp		ds	1
 
@@ -297,7 +284,27 @@ R_RF3MissMin		ds	1
 R_RF3RetryStage	ds	1
 R_RF3RetryTm		ds	1
 
-; 三个 RF 通道各自维护一套趋势窗口，避免 Auto 轮显时因为切通道而把趋势状态洗掉。
+.PAGE0
+; 收包/双帧确认状态和趋势窗口都放到 PAGE0，给 0x0100 硬件栈让出足够余量。
+R_RFBitCnt			ds	1
+R_RFPacket0			ds	1
+R_RFPacket1			ds	1
+R_RFPacket2			ds	1
+R_RFPacket3			ds	1
+R_RFPacket4			ds	1
+R_RFPacket5			ds	1
+R_RFPendingValid	ds	1
+R_RFPending0		ds	1
+R_RFPending1		ds	1
+R_RFPending2		ds	1
+R_RFPending3		ds	1
+R_RFPending4		ds	1
+R_RFParsePending	ds	1
+R_RFCaptureActive	ds	1
+R_RFPulseTicks		ds	1
+R_RFSamplePrev		ds	1
+R_RFHighSampleCnt	ds	1
+R_RFLowSampleCnt	ds	1
 R_RFTrendFlags		ds	3
 R_RFTrendTempEqCnt	ds	3
 R_RFTrendHumEqCnt	ds	3
@@ -326,8 +333,10 @@ F_RF_Init:					; RF模块初始化
 		STA		R_RFRecvWindowTm
 		STA		R_RFBitCnt
 		STA		R_RFPendingValid
+		STA		R_RFParsePending
 		STA		R_RFCaptureActive
 		STA		R_RFSamplePrev
+		STA		R_RFHighSampleCnt
 		STA		R_RFLowSampleCnt
 		STA		R_RFHalfSecDiv
 		STA		R_RF1MissMin
@@ -416,7 +425,13 @@ RF_NextAuto:
 ; 调试: 看 R_RFViewChannel、对应通道的 Id/Flags，以及 R_RFStatus 的 D_RFLongRecv 位。
 F_RF_ClearCurrentChannel:		; 长按CH后清当前通道缓存并重进长接收
 		LDA		R_RFViewChannel
+		PHA
 		JSR		F_RF_ClearSelectedChannel
+		PLA
+		JSR		F_RF_LoadSelectedChannelOffsets
+		LDA		R_RF1Flags,X
+		ORA		#D_RFManualRetry
+		STA		R_RF1Flags,X
 		JMP		F_RF_StartLongReceive
 
 ; 输入: A=通道号。
@@ -481,6 +496,7 @@ F_RF_ServiceHalfSec:			; 0.5秒调度：同步窗口与同步计时按半秒粒度运行
 		; 最新协议已改回“提前 2 秒开始接收”，所以同步相关计时全部按 0.5 秒粒度维护。
 		JSR		F_RF_ServiceReceiveWindow
 		JSR		F_RF_ServiceSyncTimers
+;		JSR		F_RF_UpdateReceiverEnable
 		LDA		R_RFStatus
 		AND		#D_RFLongRecv
 		BEQ		RF_ServiceHalfSec_Check1Sec
@@ -516,11 +532,48 @@ RF_CheckLongReceive:
 		STA		R_RFLongRecvTm
 		BNE		RF_Service1Sec_RunSync
 RF_StopLongReceive_Timeout:
+		; 手动清通道后若 3 分钟仍未收到，需要从这里转入掉码分钟规则。
+		JSR		F_RF_ArmManualRetryChannels
 		; 3 分钟长接收到点后，统一走 StopLongReceive 收口并关闭 RF_EN。
 		JSR		F_RF_StopLongReceive
 
 	RF_Service1Sec_RunSync:
 RF_Service1Sec_End:
+		RTS
+
+; 输入: 无。
+; 输出: 把“手动长按 CH 清通道后，3 分钟仍未收到”的通道接入掉码分钟链。
+; 调试: 看 NeedPair+ManualRetry 通道是否在长接收超时后得到 LostCnt=1。
+F_RF_ArmManualRetryChannels:
+		LDX		#00H
+		JSR		F_RF_ArmSelectedManualRetryChannel
+		LDX		#0AH
+		JSR		F_RF_ArmSelectedManualRetryChannel
+		LDX		#14H
+		JMP		F_RF_ArmSelectedManualRetryChannel
+
+; 输入: X=通道记录偏移(0/10/20)。
+; 输出: ManualRetry 且仍 NeedPair 的通道，超时后开始按掉码分钟规则累计。
+; 调试: 看 Flags、LostCnt、MissMin、RetryStage 是否在这里被初始化。
+F_RF_ArmSelectedManualRetryChannel:
+		LDA		R_RF1Flags,X
+		AND		#D_RFManualRetry
+		BEQ		RF_ArmSelectedManualRetryChannel_End
+		LDA		R_RF1Flags,X
+		AND		#D_RFNeedPair
+		BEQ		RF_ArmSelectedManualRetryChannel_End
+		LDA		R_RF1Flags,X
+		ORA		#D_RFLost
+		STA		R_RF1Flags,X
+		LDA		R_RF1LostCnt,X
+		BNE		RF_ArmSelectedManualRetryChannel_End
+		LDA		#01H
+		STA		R_RF1LostCnt,X
+		LDA		#00H
+		STA		R_RF1MissMin,X
+		STA		R_RF1RetryStage,X
+		STA		R_RF1RetryTm,X
+RF_ArmSelectedManualRetryChannel_End:
 		RTS
 
 ; 输入: RTC+1 当前分钟值。
@@ -544,7 +597,7 @@ RF_ServiceMinuteTick_End:
 F_RF_SetSelectedChannelValid:		; A=通道号，清掉 lost/retry 并恢复有效标志
 		JSR		F_RF_LoadSelectedChannelOffsets
 		LDA		R_RF1Flags,X
-		AND		#(.NOT.(D_RFLost+D_RFNeedPair))
+		AND		#(.NOT.(D_RFLost+D_RFNeedPair+D_RFManualRetry))
 		ORA		#D_RFValid
 		STA		R_RF1Flags,X
 		LDA		#00H
@@ -734,7 +787,7 @@ RF_ServiceAutoView_End:
 
 ; 输入: 当前是否处于 D_RFRecvBusy。
 ; 输出: 接收窗口按 0.5 秒单位倒计时，到 0 直接走 F_RF_OnReceiveFail。
-; 调试: 开窗后盯 R_RFRecvWindowTm，从 4 递减到 0 的过程最直观。
+; 调试: 开窗后盯 R_RFRecvWindowTm，从 8 递减到 0 的过程最直观。
 F_RF_ServiceReceiveWindow:		; 接收窗口倒计时，超时即按一次失败处理
 		LDA		R_RFStatus
 		AND		#D_RFRecvBusy
@@ -808,7 +861,7 @@ F_RF_ServiceChannel3Sync:		; 维护 CH3 的同步定时，到点后发起接收
 		JMP		F_RF_ServiceSelectedChannelSync
 
 ; 输入: A=请求通道号。
-; 输出: 记录当前请求通道、重装同步周期、清双帧缓存、开启 2 秒接收窗口并拉低 PD0。
+; 输出: 记录当前请求通道、重装同步周期、清双帧缓存、开启 4 秒接收窗口并拉低 PD0。
 ; 调试: 开窗点先看 R_RFRequestChannel、R_RFRecvWindowTm、R_RFStatus。
 F_RF_RequestSync:			; 发起指定通道的一次同步接收窗口
 		STA		R_RFRequestChannel
@@ -818,7 +871,7 @@ F_RF_RequestSync:			; 发起指定通道的一次同步接收窗口
 		JSR		F_RF_ClearPendingFrame
 		; 同时清当前半截包，避免上个窗口没收完的 BIT 串到这次窗口。
 		JSR		F_RF_ResetPacketBuffer
-		LDA		#C_RFRecvWindow2SecTick
+		LDA		#C_RFRecvWindow4SecTick
 		STA		R_RFRecvWindowTm
 		LDA		R_RFStatus
 		ORA		#(D_RFNeedSync+D_RFRecvBusy)
@@ -842,16 +895,17 @@ F_RF_UpdateReceiverEnable:		; PD0=RF_EN，低有效；PD1 保持输入浮空收码
 		AND		#(D_RFLongRecv+D_RFRecvBusy)
 		BEQ		RF_UpdateReceiverDisable
 		LDA		R_PortD_Data_Buf
-		AND		#(.NOT.(D_Bit0))
+		AND		#FEH
 		STA		R_PortD_Data_Buf
 		STA		P_IO_PortD_Data
+		CLI		
 		RTS
 
 RF_UpdateReceiverDisable:
 		LDA		R_PortD_Data_Buf
 		ORA		#D_Bit0
 		STA		R_PortD_Data_Buf
-		STA		P_IO_PortD_Data
+		STA		P_IO_PortD_Data		
 		RTS
 
 ; 输入: R_RFRequestChannel。
@@ -927,14 +981,14 @@ F_RF_ServiceChannel2Minute:		; 按分钟累计 CH2 掉码时长并触发 60/120/180 分钟策略
 		LDY		#01H
 		JMP		F_RF_ServiceSelectedChannelMinute
 
-F_RF_ServiceChannel3Minute:		; 按分钟累计 CH3 掉码时长并触发 60/120/180 分钟策略
+F_RF_ServiceChannel3Minute:		; 按分钟累计 CH3 掉码时长并触发 60/120/小时重试策略
 		LDX		#14H
 		LDY		#02H
-		; 60 分钟先触发一次 3 分钟长接收；120 分钟后改成 3 小时节拍重复尝试。
+		; 60 分钟先触发一次 3 分钟长接收；120 分钟后改成每小时 1 次，总共 3 次。
 		JMP		F_RF_ServiceSelectedChannelMinute
 
 ; 输入: X=通道数据偏移，Y=同步计时偏移。
-; 输出: LostCnt 非 0 时按分钟累计 MissMin，并在 60/120/180 分钟点切换重试阶段或重启长接收。
+; 输出: LostCnt 非 0 时按分钟累计 MissMin，并在 60/120 分钟点切换到 3 分钟长接收/小时重试。
 ; 调试: 重点看 MissMin、RetryStage、RetryTm、对应 SyncTm。
 F_RF_ServiceSelectedChannelMinute:	; X=通道记录偏移(0/10/20), Y=同步计时偏移(0/1/2)
 		LDA		R_RF1LostCnt,X
@@ -943,9 +997,9 @@ F_RF_ServiceSelectedChannelMinute:	; X=通道记录偏移(0/10/20), Y=同步计时偏移(0/1
 		LDA		R_RF1RetryStage,X
 		CMP		#C_RFFinalRetryStage
 		BCS		RF_ServiceSelectedChannelMinute_End
-		; RetryStage=2 后不再走 60/120 分钟判断，而是改成每 180 分钟重试一次。
-		CMP		#02H
-		BEQ		RF_ServiceSelectedChannelRetry180
+		; RetryStage=2~4 表示 120 分钟后的小时重试窗口。
+		CMP		#C_RFHourlyRetryStageFirst
+		BCS		RF_ServiceSelectedChannelRetryHourly
 		LDA		R_RF1MissMin,X
 		CLC
 		ADC		#01H
@@ -966,31 +1020,42 @@ RF_SelectedChannelEnter60MinLongRecv:
 		JMP		F_RF_StartLongReceive
 
 RF_SelectedChannelEnter120MinLongRecv:
-		; 到 120 分钟后切到 stage2。这里先预装 183 分钟，
-		; 因为马上会进入 3 分钟长接收，超时后正好还剩完整 180 分钟等待下一次重试。
-		LDA		#02H
+		; 到 120 分钟后进入小时重试模式：马上开 1 次长接收，
+		; 之后每次长接收结束再等完整 60 分钟，总共尝试 3 次。
+		LDA		#C_RFHourlyRetryStageFirst
 		STA		R_RF1RetryStage,X
-		LDA		#C_RFFailRetry183Min
+		LDA		#C_RFFailRetry63Min
 		STA		R_RF1RetryTm,X
 		LDA		#C_RFSyncIdle
 		STA		R_RF1SyncTm,Y
 		JMP		F_RF_StartLongReceive
 
-RF_ServiceSelectedChannelRetry180:
+RF_ServiceSelectedChannelRetryHourly:
 		LDA		R_RF1RetryTm,X
-		BEQ		RF_SelectedChannelRetryLongRecv
+		BEQ		RF_SelectedChannelRetryHourly
 		SEC
 		SBC		#01H
 		STA		R_RF1RetryTm,X
 		BNE		RF_ServiceSelectedChannelMinute_End
-RF_SelectedChannelRetryLongRecv:
-		; 120 分钟后的 180 分钟重试只再触发一次；如果这次仍收不到，
-		; stage 置到 final，后续就不再自动打开长接收，保留手动 CH 清配入口。
+
+RF_SelectedChannelRetryHourly:
+		LDA		R_RF1RetryStage,X
+		CMP		#C_RFHourlyRetryStageLast
+		BCS		RF_SelectedChannelRetryHourlyFinish
+		INC		R_RF1RetryStage,X
+		LDA		#C_RFFailRetry63Min
+		STA		R_RF1RetryTm,X
+		LDA		#C_RFSyncIdle
+		STA		R_RF1SyncTm,Y
+		JMP		F_RF_StartLongReceive
+
+RF_SelectedChannelRetryHourlyFinish:
+		; 小时重试第 3 次仍失败后，后续不再自动打开长接收，保留手动 CH 清配入口。
 		LDA		#C_RFFinalRetryStage
 		STA		R_RF1RetryStage,X
 		LDA		#00H
 		STA		R_RF1RetryTm,X
-		JMP		F_RF_StartLongReceive
+		RTS
 
 ; 输入: 无。
 ; 输出: 仅清掉 pending 有效标志，让下一帧重新成为“第一帧”。
@@ -1109,7 +1174,9 @@ RF_RequestChannelPacketAccept:
 F_RF_ResetPacketBuffer:			; 清当前 36bit 收包缓存，不动双帧 pending 缓存
 		LDA		#00H
 		STA		R_RFBitCnt
+		STA		R_RFParsePending
 		STA		R_RFCaptureActive
+		STA		R_RFHighSampleCnt
 		STA		R_RFPacket0
 		STA		R_RFPacket1
 		STA		R_RFPacket2
@@ -1191,15 +1258,15 @@ RF_AppendBit_Inc:
 RF_AppendBit_End:
 		RTS
 
-; 输入: A=一次连续低电平的宽度，单位 50us/tick。
+; 输入: A=一次连续低电平的宽度，单位为 Timer0 实测约 244us/sample。
 ; 输出: 识别停止位/bit0/bit1，并在满 36bit 时转入解包流程。
 ; 调试: 先看 R_RFPulseTicks、R_RFCaptureActive、R_RFBitCnt、R_RFPacket0~4。
 F_RF_FeedLowPulseTicks:		; 先认 4~5ms 停止位作为起帧锚点，再把后续低脉宽翻成 36bit 数据
 		STA		R_RFPulseTicks
 		; 停止位既是上一帧的结尾，也是下一帧开始抓数的锚点；前导码全部忽略。
-		CMP		#C_RFStopLowMinTick
+		CMP		#C_RFStopLowMinSample
 		BCC		RF_FeedLowPulse_CheckCapture
-		CMP		#C_RFStopLowMaxTick+1
+		CMP		#C_RFStopLowMaxSample+1
 		BCC		RF_FeedLowPulse_StartFrame
 
 RF_FeedLowPulse_CheckCapture:
@@ -1207,13 +1274,13 @@ RF_FeedLowPulse_CheckCapture:
 		LDA		R_RFCaptureActive
 		BEQ		RF_FeedLowPulse_End
 		LDA		R_RFPulseTicks
-		CMP		#C_RFBit1LowMinTick
+		CMP		#C_RFBit1LowMinSample
 		BCC		RF_FeedLowPulse_Invalid
-		CMP		#C_RFBit1LowMaxTick+1
+		CMP		#C_RFBit1LowMaxSample+1
 		BCC		RF_FeedLowPulse_Bit1
-		CMP		#C_RFBit0LowMinTick
+		CMP		#C_RFBit0LowMinSample
 		BCC		RF_FeedLowPulse_Invalid
-		CMP		#C_RFBit0LowMaxTick+1
+		CMP		#C_RFBit0LowMaxSample+1
 		BCC		RF_FeedLowPulse_Bit0
 
 RF_FeedLowPulse_Invalid:
@@ -1241,69 +1308,99 @@ RF_FeedLowPulse_AfterBit:
 		LDA		R_RFBitCnt
 		CMP		#C_RFPacketBits36
 		BCC		RF_FeedLowPulse_End
-		; 满 36bit 后立刻转解包，避免继续吞掉后面重复发的同帧数据。
-		JMP		F_RF_ParsePacket
+		; 满 36bit 后只挂待解析标志，让主循环做后续解析，避免中断栈过深。
+		LDA		#01H
+		STA		R_RFParsePending
+		LDA		#00H
+		STA		R_RFCaptureActive
+		STA		R_RFSamplePrev
+		STA		R_RFHighSampleCnt
+		STA		R_RFLowSampleCnt
+		RTS
+; 输入: 无。
+; 输出: 如果 IRQ 已经收满 36bit，就在主循环里补做解析，避免把重调用链压在中断栈上。
+F_RF_ServicePendingParse:		; 主循环入口：处理 IRQ 延后的 RF 解析
+		LDA		R_RFParsePending
+		BEQ		RF_ServicePendingParse_End
+		JSR		F_RF_ParsePacket
+RF_ServicePendingParse_End:
+		RTS
 
 RF_FeedLowPulse_End:
 		RTS
 
-; 输入: 2kHz 中断节拍下的 PD1 当前电平。
-; 输出: 维护低电平样本计数，并在一次低脉冲结束后换算成 50us tick 喂给解码入口。
+; 输入: Timer0 中断节拍下的 PD1 当前电平。
+; 输出: 维护低电平样本计数，并在一次低脉冲结束后把实测约 244us 的样本数喂给解码入口。
 ; 调试: 先看 R_RFSamplePrev、R_RFLowSampleCnt；一次低电平结束后看 R_RFPulseTicks。
-F_RF_Service2KHzSample:		; 2kHz 采样 PD1，把低电平样本数换算成 50us tick 后送入 F_RF_FeedLowPulseTicks
+F_RF_Service8KHzSample:		; 函数名沿用旧名，当前按 Timer0 实测约 4.096kHz 采样 PD1
 		LDA		R_RFStatus
 		AND		#(D_RFLongRecv+D_RFRecvBusy)
-		BNE		RF_Service2KHzSample_Active
-		; 未处于接收状态时只同步输入电平，不累计脉宽。
+		BNE		RF_Service8KHzSample_Active
+		; 未处于接收状态时只同步输入电平，不累计高/低脉宽。
 		LDA		P_IO_PortD_Data
 		AND		#D_Bit1
 		STA		R_RFSamplePrev
 		LDA		#00H
+		STA		R_RFHighSampleCnt
 		STA		R_RFLowSampleCnt
 		RTS
 
-RF_Service2KHzSample_Active:
+RF_Service8KHzSample_Active:
 		LDA		P_IO_PortD_Data
 		AND		#D_Bit1
 		; PD1 为高时，如果上一拍也是高，就什么都不做；如果上一拍是低，就表示一段低脉冲结束了。
-		BEQ		RF_Service2KHzSample_Low
+		BEQ		RF_Service8KHzSample_Low
 		LDA		R_RFSamplePrev
-		BEQ		RF_Service2KHzSample_LowEnd
+		BEQ		RF_Service8KHzSample_LowEnd
+		LDA		R_RFHighSampleCnt
+		CMP		#0FEH
+		BCS		RF_Service8KHzSample_HighKeep
+		INC		R_RFHighSampleCnt
+RF_Service8KHzSample_HighKeep:
 		LDA		#D_Bit1
 		STA		R_RFSamplePrev
 		RTS
 
-RF_Service2KHzSample_Low:
+RF_Service8KHzSample_Low:
 		LDA		R_RFSamplePrev
-		BEQ		RF_Service2KHzSample_LowHold
-		; 刚从高跳低，开始统计这段低电平持续了多少个 2kHz 样本。
+		BEQ		RF_Service8KHzSample_LowHold
+		; 刚从高跳低，先验上一段高电平是否接近协议固定的 500us，再开始统计低电平。
+		LDA		R_RFCaptureActive
+		BEQ		RF_Service8KHzSample_StartLow
+		LDA		R_RFHighSampleCnt
+		CMP		#C_RFBitHighMinSample
+		BCC		RF_Service8KHzSample_InvalidHigh
+		CMP		#C_RFBitHighMaxSample+1
+		BCC		RF_Service8KHzSample_StartLow
+RF_Service8KHzSample_InvalidHigh:
+		JSR		F_RF_ResetPacketBuffer
+RF_Service8KHzSample_StartLow:
 		LDA		#00H
 		STA		R_RFSamplePrev
+		STA		R_RFHighSampleCnt
 		LDA		#01H
 		STA		R_RFLowSampleCnt
 		RTS
 
-RF_Service2KHzSample_LowHold:
+RF_Service8KHzSample_LowHold:
 		LDA		R_RFLowSampleCnt
 		CMP		#0FEH
 		; 饱和保护，防止异常长低电平把计数溢出。
-		BCS		RF_Service2KHzSample_End
+		BCS		RF_Service8KHzSample_End
 		INC		R_RFLowSampleCnt
-RF_Service2KHzSample_End:
+RF_Service8KHzSample_End:
 		RTS
 
-RF_Service2KHzSample_LowEnd:
+RF_Service8KHzSample_LowEnd:
 		LDA		#D_Bit1
 		STA		R_RFSamplePrev
 		LDA		R_RFLowSampleCnt
-		BEQ		RF_Service2KHzSample_End
-		; 2kHz 一个样本是 500us，这里乘以 10 换算成 50us tick。
-		ASL		A
+		BEQ		RF_Service8KHzSample_End
+		; Timer0 一个样本当前实测约 244us，直接按样本数判 stop/bit0/bit1。
 		STA		R_RFPulseTicks
-		ASL		A
-		ASL		A
-		CLC
-		ADC		R_RFPulseTicks
+		LDA		#01H
+		STA		R_RFHighSampleCnt
+		LDA		R_RFPulseTicks
 		JSR		F_RF_FeedLowPulseTicks
 		LDA		#00H
 		STA		R_RFLowSampleCnt
@@ -1431,14 +1528,18 @@ RF_LoadPacketToChannelCommon:
 		; Packet0 = 发射器 ID 8bit。
 		LDA		R_RFPacket0
 		STA		R_RF1IdL,X
-		; Packet1 低 4bit + Packet2 组成 12bit 温度原码。
+		; 现场实测这 12bit 温度场与真实补码按位相反，先取反再做符号扩展。
 		LDA		R_RFPacket1
 		AND		#0FH
+		EOR		#0FH
 		STA		R_RF1TempH,X
 		LDA		R_RFPacket2
+		EOR		#0FFH
 		STA		R_RF1TempL,X
-		; 温度字段是 12bit 补码，bit12 为符号位，这里直接做符号扩展到 16bit 存储。
+		; 修正后的温度字段仍按 12bit 补码处理，bit12 为符号位。
 		LDA		R_RFPacket1
+		AND		#0FH
+		EOR		#0FH
 		AND		#08H
 		BEQ		RF_LoadPacketTempReady
 		LDA		R_RF1TempH,X
@@ -1477,8 +1578,7 @@ RF_LoadPacketBatteryNormal:
 		STA		R_RF1Flags,X
 
 RF_LoadPacketTrendUpdate:
-		; 室外趋势以“成功收下一帧新样本”为更新时机，
-		; 这样节拍跟室内 Alarm 的采样更新一致，不会被 LCD 刷新频率放大。
+		; 趋势缓存已移到 PAGE0，恢复每次收包后的趋势推进。
 		JSR		F_RF_UpdateSelectedChannelTrend
 		RTS
 

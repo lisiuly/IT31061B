@@ -43,14 +43,16 @@ C_RFBit0Low2000us		equ	2000
 C_RFBit1Low1000us		equ	1000
 C_RFPacketBits36		equ	36
 
-; RF收码低脉宽按 50us tick 喂入:
-; 1ms = 20 tick, 2ms = 40 tick, 停止位 4~5ms = 80~100 tick
-C_RFBit1LowMinTick		equ	16
-C_RFBit1LowMaxTick		equ	24
-C_RFBit0LowMinTick		equ	36
-C_RFBit0LowMaxTick		equ	44
-C_RFStopLowMinTick		equ	80
-C_RFStopLowMaxTick		equ	100
+; RF收码低脉宽按 Timer0 实测约 4.096kHz 的样本数喂入:
+; bit1 约 4~5 sample，bit0 约 8~9 sample，停止位约 16~20 sample。
+C_RFBitHighMinSample		equ	01H
+C_RFBitHighMaxSample		equ	03H
+C_RFBit1LowMinSample		equ	03H
+C_RFBit1LowMaxSample		equ	06H
+C_RFBit0LowMinSample		equ	07H
+C_RFBit0LowMaxSample		equ	0AH
+C_RFStopLowMinSample		equ	0FH
+C_RFStopLowMaxSample		equ	16H
 
 .EXTERN		R_RFBitCnt
 .EXTERN		R_RFPacket0
@@ -114,11 +116,12 @@ D_RFTrendHumRefresh	equ	40h
 .EXTERN		F_RF_StopLongReceive
 .EXTERN		F_RF_ServiceHalfSec
 .EXTERN		F_RF_Service1Sec
+.EXTERN		F_RF_ServicePendingParse
 .EXTERN		F_RF_OnReceiveOK
 .EXTERN		F_RF_OnReceiveFail
 .EXTERN		F_RF_ResetPacketBuffer
 .EXTERN		F_RF_AppendBit0
 .EXTERN		F_RF_AppendBit1
 .EXTERN		F_RF_FeedLowPulseTicks
-.EXTERN		F_RF_Service2KHzSample
+.EXTERN		F_RF_Service8KHzSample
 .EXTERN		F_RF_ParsePacket

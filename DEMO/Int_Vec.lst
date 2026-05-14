@@ -440,17 +440,17 @@
    437                      <       %F_InitINT:		.MACRO
    438                      <       		LDA		#00000111b		;2HZ （bit0~2) for 111 is 4K 			;timeBaseA 2hz timeBaseB 16hz
    439                      <       		STA		P_TIMER_TimeBase_Sel		
-   440                      <       		LDA		#D_2KHzInt+D_128HzInt+D_TMBAInt+D_TMBBInt;+D_Timer0Int
+   440                      <       		LDA		#D_128HzInt+D_TMBAInt+D_TMBBInt;D_Timer0Int+
    441                      <       		STA		P_INT_Ctrl
-   442                      <       		LDA		#00
-   443                      <       		STA		P_INT_Ctrl2		;disable TMR1 INT
+   442                      <       ;		LDA		#00
+   443                      <       ;		STA		P_INT_Ctrl2		;disable TMR1 INT
    444                      <       ;		LDA		#D_TimerEn+D_TimerFallEdge+D_TimerSrcA_VDD+D_TimerSrcB_LF
    445                      <       ;		STA		P_TIMER_Timer0_Ctrl
-   446                      <       ;		LDA		#0xC8
-   447                      <       ;		LDA		#0xFC
-   448                      <       ;		STA		P_TIMER_TM0Data_LB		;8k
-   449                      <       ;		LDA		#0xFF
-   450                      <       ;		STA		P_TIMER_TM0Data_HB
+   446                      <       ;		LDA		#0FCH
+   447                      <       ;		STA		P_TIMER_TM0Data_LB		; Timer0 reload = FFFCh, scope now shows about 4.096kHz IRQ on this board.
+   448                      <       ;		LDA		#0FFH
+   449                      <       ;		STA		P_TIMER_TM0Data_HB
+   450                      <       ;		STA		P_TIMER_TM0Load_Ctrl
    451                      <       	.ENDM
    452                      <       ;;============================================================================
    453                      <       ;Macro Name: %DisableLCD
@@ -752,10 +752,10 @@
    749                      <       		LDA		#00000000b		
    750                      <       		STA		P_IO_PortB_Data		;PB1蜂鸣器，PB0背光
    751                      <       
-   752                      <       		LDA		#00H
+   752                      <       		LDA		#C_PC7Dir
    753                      <       		STA		P_IO_PortC_Dir
    754                      <       		LDA		#00000000b
-   755                      <       		STA		P_IO_PortC_Data	
+   755                      <       		STA		P_IO_PortC_Data		; PC7 debug output, default low.
    756                      <       		
    757                      <       		LDA		#00h
    758                      <       		STA		P_IO_PortD_Attrib		
@@ -1138,7 +1138,7 @@
   1135                              ;==========================================
   1136                              ; External declare area
   1137                              ;==========================================
-  1138                              .EXTERN		F_RF_Service2KHzSample
+  1138                              .EXTERN		F_RF_Service8KHzSample
   1139                              
   1140                              ;==========================================
   1141                              ; Public declare area
@@ -1177,9 +1177,9 @@
   1174 0000000B                     ?L_TMBaseB_INT:
   1175 0000000B AD 00 00            	LDA		R_INTFlag
   1176 0000000E 29 10               	AND		#D_TMBBInt
-  1177 00000010 F0 2C               	BEQ		?L_128HZ_INT
+  1177 00000010 F0 20               	BEQ		?L_128HZ_INT
   1178 00000012 85 44               	STA		P_INT_TimeBaseB_Clear	;如果不是定时器B中断，则跳转到下一步处理
-  1179 00000014 20 00 00            	JSR		INT_PlayPWM
+  1179 00000014 20 00 00            		JSR		F_RF_Service8KHzSample		
   1180                              	 ; 如果声音开启，则执行声音处理
   1181 00000017 AD 00 00                LDA     R_SoundOn
   1182 0000001A D0 07                   BNE     ?On    ; 如果声音开启，则跳转到?On处理
@@ -1191,105 +1191,104 @@
   1188 00000023 A5 12               	LDA		P_IO_PortB_Data
   1189 00000025 49 02               	EOR		#D_Bit1
   1190 00000027 85 12               	STA		P_IO_PortB_Data
-  1191                              ;	STA		R_PortD_Data_Buf
-  1192 00000029 4C 3E 00            	JMP		?L_128HZ_INT
-  1193                              ;--------------------------------
-  1194 0000002C                     ?DisTone:
-  1195 0000002C A5 12               	LDA		P_IO_PortB_Data
-  1196 0000002E 29 FD               	AND		#.not.D_Bit1
-  1197                              ;	STA		R_PortD_Data_Buf
-  1198 00000030 85 12               	STA		P_IO_PortB_Data
-  1199                              
-  1200 00000032                     ?L_2KHz_INT:
-  1201 00000032 AD 00 00            		LDA		R_INTFlag
-  1202 00000035 29 02               		AND		#D_2KHzInt
-  1203 00000037 F0 05               		BEQ		?L_128HZ_INT
-  1204 00000039 85 41               		STA		P_INT_2KHz_Clear
-  1205 0000003B 20 00 00            		JSR		F_RF_Service2KHzSample
-  1206                              
-  1207 0000003E                     ?L_128HZ_INT:	; 检查是否为128Hz定时器中断
-  1208 0000003E AD 00 00            		LDA		R_INTFlag
-  1209 00000041 29 04               		AND		#D_128HzInt
-  1210 00000043 F0 1F               		BEQ		?L_2hz_INT	; 如果不是128Hz定时器中断，则跳转到?L_2hz_INT处理
-  1211 00000045 85 42               		STA		P_INT_128Hz_Clear	; 如果是128Hz定时器中断，则清除中断标志，并执行相应处理
-  1212                              		
-  1213 00000047 EE 00 00            		INC		R_128Hz		
-  1214                              		
-  1215                              		; 检查按键消抖计数器是否为零，如果不为零则递减
-  1216 0000004A AD 00 00            		LDA		R_DebounceCnt
-  1217 0000004D F0 03               		BEQ		?L_FastAdd
-  1218 0000004F CE 00 00            		DEC		R_DebounceCnt
-  1219                              	
-  1220 00000052                     	?L_FastAdd: ; 长按倒计时改由 2Hz 路径处理
-  1221                              		; 86428 规格未定义 Mold 报警，128Hz 中断不再驱动这条非规格逻辑。
-  1222                              	
-  1223 00000052                     	?Check_ToneTime:; 检查按键音时间是否为零，如果不为零则递减
-  1224 00000052 AD 00 00            		LDA	R_KeyToneTm
-  1225 00000055 F0 0D               		beq	?L_2hz_INT
-  1226 00000057 CE 00 00            		DEC	R_KeyToneTm
-  1227 0000005A D0 08               		BNE	?L_2hz_INT
-  1228                              
-  1229 0000005C AD 00 00            		LDA	R_KeyFlag
-  1230 0000005F 29 DE               		AND	#(.not.(D_KeyTone+D_ToneOn))
-  1231 00000061 8D 00 00            		STA	R_KeyFlag
-  1232                              		
-  1233                              ;	?Check_Pulse:
-  1234                              ;		LDA		R_Pulse
-  1235                              ;		BEQ		?L_2hz_INT
-  1236                              ;		DEC		R_Pulse
-  1237                              ;		BNE		?L_2hz_INT
-  1238                              ;		JSR		F_PulseHigh
-  1239                              ;		%bitr	R_KeyFlag,D_Alarming
-  1240                              
-  1241                              ;		
-  1242                              ;		LDA	R_DebounceCntHall
-  1243                              ;		BEQ	?Check_LongTimeHall
-  1244                              ;		DEC	R_DebounceCntHall
-  1245                              ;		
-  1246                              ;			
-  1247                              ;	?Check_LongTimeHall:
-  1248                              ;		LDA	R_LongKeyTimeHall
-  1249                              ;		BEQ	?Check_SWTimeHall
-  1250                              ;		DEC	R_LongKeyTimeHall
-  1251                              ;		
-  1252                              ;	?Check_SWTimeHall:
+  1191 00000029 4C 32 00            	JMP		?L_Timer0_INT
+  1192                              ;--------------------------------
+  1193 0000002C                     ?DisTone:
+  1194 0000002C A5 12               	LDA		P_IO_PortB_Data
+  1195 0000002E 29 FD               	AND		#.not.D_Bit1
+  1196 00000030 85 12               	STA		P_IO_PortB_Data
+  1197                              
+  1198                              	; RF 收码改走 Timer0 采样；当前板上实测这条 IRQ 约 4.096kHz，足够看见 469us 高脉冲。
+  1199 00000032                     ?L_Timer0_INT:
+  1200                              ;		LDA		R_INTFlag
+  1201                              ;		AND		#D_Timer0Int
+  1202                              ;		BEQ		?L_128HZ_INT
+  1203                              ;		STA		P_INT_Timer0_Clear
+  1204                              
+  1205                              
+  1206 00000032                     ?L_128HZ_INT:	; 检查是否为128Hz定时器中断
+  1207 00000032 AD 00 00            		LDA		R_INTFlag
+  1208 00000035 29 04               		AND		#D_128HzInt
+  1209 00000037 F0 1F               		BEQ		?L_2hz_INT	; 如果不是128Hz定时器中断，则跳转到?L_2hz_INT处理
+  1210 00000039 85 42               		STA		P_INT_128Hz_Clear	; 如果是128Hz定时器中断，则清除中断标志，并执行相应处理
+  1211                              		
+  1212 0000003B EE 00 00            		INC		R_128Hz		
+  1213                              		
+  1214                              		; 检查按键消抖计数器是否为零，如果不为零则递减
+  1215 0000003E AD 00 00            		LDA		R_DebounceCnt
+  1216 00000041 F0 03               		BEQ		?L_FastAdd
+  1217 00000043 CE 00 00            		DEC		R_DebounceCnt
+  1218                              	
+  1219 00000046                     	?L_FastAdd: ; 长按倒计时改由 2Hz 路径处理
+  1220                              		; 86428 规格未定义 Mold 报警，128Hz 中断不再驱动这条非规格逻辑。
+  1221                              	
+  1222 00000046                     	?Check_ToneTime:; 检查按键音时间是否为零，如果不为零则递减
+  1223 00000046 AD 00 00            		LDA	R_KeyToneTm
+  1224 00000049 F0 05               		beq	?L_Next
+  1225 0000004B CE 00 00            		DEC	R_KeyToneTm
+  1226 0000004E D0 08               		BNE	?L_2hz_INT
+  1227 00000050                     	?L_Next:
+  1228 00000050 AD 00 00            		LDA	R_KeyFlag
+  1229 00000053 29 DE               		AND	#(.not.(D_KeyTone+D_ToneOn))
+  1230 00000055 8D 00 00            		STA	R_KeyFlag
+  1231                              		
+  1232                              ;	?Check_Pulse:
+  1233                              ;		LDA		R_Pulse
+  1234                              ;		BEQ		?L_2hz_INT
+  1235                              ;		DEC		R_Pulse
+  1236                              ;		BNE		?L_2hz_INT
+  1237                              ;		JSR		F_PulseHigh
+  1238                              ;		%bitr	R_KeyFlag,D_Alarming
+  1239                              
+  1240                              ;		
+  1241                              ;		LDA	R_DebounceCntHall
+  1242                              ;		BEQ	?Check_LongTimeHall
+  1243                              ;		DEC	R_DebounceCntHall
+  1244                              ;		
+  1245                              ;			
+  1246                              ;	?Check_LongTimeHall:
+  1247                              ;		LDA	R_LongKeyTimeHall
+  1248                              ;		BEQ	?Check_SWTimeHall
+  1249                              ;		DEC	R_LongKeyTimeHall
+  1250                              ;		
+  1251                              ;	?Check_SWTimeHall:
+  1252                              		
   1253                              		
   1254                              		
-  1255                              		
-  1256 00000064                     ?L_2hz_INT:; 检查是否为2Hz定时器中断
-  1257 00000064 AD 00 00            	LDA		R_INTFlag
-  1258 00000067 29 08               	AND		#D_TMBAInt
-  1259 00000069 F0 05               	BEQ		?L_Exit_IRQ		; 如果不是2Hz定时器中断，则退出中断处理
-  1260 0000006B 85 43               	STA		P_INT_TimeBaseA_Clear
-  1261 0000006D EE 00 00            	INC		R_2Hz
-  1262                              
-  1263                              ;  	LDA		R_PlaySeconds
-  1264                              ;    BEQ		?L_Exit_IRQ       ; 时间为0则跳转停止
-  1265                              ;    DEC		R_PlaySeconds   ; 剩余秒数减0.5
-  1266                              ;
-  1267                              ;	LDA		R_LongKeyTime_1
-  1268                              ;	BEQ		?L_Exit_IRQ
-  1269                              ;	DEC		R_LongKeyTime_1
-  1270 00000070                     ?L_Exit_IRQ:
-  1271                                  %PopAll   ; 恢复所有寄存器的值
-  1272                            1                                                     
-  1273 00000070 68                1 		PLA                                                                         
-  1274 00000071 A8                1 		TAY                                                                         
-  1275 00000072 68                1 		PLA                                                                         
-  1276 00000073 AA                1 		TAX                                                                         
-  1277 00000074 68                1 		PLA                                                                         
-  1278 00000075 28                1 		PLP                                                                         
-  1279 00000076 40                      RTI       ; 返回中断处理结束
-  1280                                  
-  1281                              	
-  1282                                  
-  1283                              ;==========================================
-  1284                              ; Vector declare
-  1285                              ;==========================================
-  1286 00000000                     VECTOR: .SECTION
-  1287 00000000 00 00                   DW  V_RESET             ; Reset vector		复位向量
-  1288 00000002 00 00                   DW  V_IRQ               ; interrupt vector	中断向量
-  1289                                      .ENDS
-  1290                              
-  1291                              .END
+  1255 00000058                     ?L_2hz_INT:; 检查是否为2Hz定时器中断
+  1256 00000058 AD 00 00            	LDA		R_INTFlag
+  1257 0000005B 29 08               	AND		#D_TMBAInt
+  1258 0000005D F0 05               	BEQ		?L_Exit_IRQ		; 如果不是2Hz定时器中断，则退出中断处理
+  1259 0000005F 85 43               	STA		P_INT_TimeBaseA_Clear
+  1260 00000061 EE 00 00            	INC		R_2Hz
+  1261                              
+  1262                              ;  	LDA		R_PlaySeconds
+  1263                              ;    BEQ		?L_Exit_IRQ       ; 时间为0则跳转停止
+  1264                              ;    DEC		R_PlaySeconds   ; 剩余秒数减0.5
+  1265                              ;
+  1266                              ;	LDA		R_LongKeyTime_1
+  1267                              ;	BEQ		?L_Exit_IRQ
+  1268                              ;	DEC		R_LongKeyTime_1
+  1269 00000064                     ?L_Exit_IRQ:
+  1270                                  %PopAll   ; 恢复所有寄存器的值
+  1271                            1                                                     
+  1272 00000064 68                1 		PLA                                                                         
+  1273 00000065 A8                1 		TAY                                                                         
+  1274 00000066 68                1 		PLA                                                                         
+  1275 00000067 AA                1 		TAX                                                                         
+  1276 00000068 68                1 		PLA                                                                         
+  1277 00000069 28                1 		PLP                                                                         
+  1278 0000006A 40                      RTI       ; 返回中断处理结束
+  1279                                  
+  1280                              	
+  1281                                  
+  1282                              ;==========================================
+  1283                              ; Vector declare
+  1284                              ;==========================================
+  1285 00000000                     VECTOR: .SECTION
+  1286 00000000 00 00                   DW  V_RESET             ; Reset vector		复位向量
+  1287 00000002 00 00                   DW  V_IRQ               ; interrupt vector	中断向量
+  1288                                      .ENDS
+  1289                              
+  1290                              .END
 0 Error(s), 0 Warning(s).

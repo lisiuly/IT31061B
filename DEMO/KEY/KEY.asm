@@ -316,24 +316,24 @@ F_backlightOpen:
 		RTS
 
 		
-.PUBLIC		INT_PlayPWM
-; 输入: 当前背光开关标志 R_LEDFlag。
-; 输出: 在中断里把 PB0 直接拉高/拉低，维持背光实际电平。
-; 调试: 看 D_LED_ON 与 PB0 电平是否一致。
-INT_PlayPWM:				;在中断里调用
-	    LDA     R_LEDFlag
-	    AND     #D_LED_ON
-	    BEQ     ?DisLED		; 背光改成直接高低电平，不再做软件 PWM
-		LDA		P_IO_PortB_Data
-		ORA		#D_Bit0
-		STA		P_IO_PortB_Data
-		RTS
+; .PUBLIC		INT_PlayPWM
+; ; 输入: 当前背光开关标志 R_LEDFlag。
+; ; 输出: 在中断里把 PB0 直接拉高/拉低，维持背光实际电平。
+; ; 调试: 看 D_LED_ON 与 PB0 电平是否一致。
+; INT_PlayPWM:				;在中断里调用
+; 	    LDA     R_LEDFlag
+; 	    AND     #D_LED_ON
+; 	    BEQ     ?DisLED		; 背光改成直接高低电平，不再做软件 PWM
+; 		LDA		P_IO_PortB_Data
+; 		ORA		#D_Bit0
+; 		STA		P_IO_PortB_Data
+; 		RTS
 
-	?DisLED:
-		LDA		P_IO_PortB_Data
-		AND		#.not.D_Bit0
-		STA		P_IO_PortB_Data
-		RTS			
+; 	?DisLED:
+; 		LDA		P_IO_PortB_Data
+; 		AND		#.not.D_Bit0
+; 		STA		P_IO_PortB_Data
+; 		RTS			
 		
 		
 ;		28规格当前产品没有 12/24H 切换入口，这个旧时钟 helper 先屏蔽保留。
@@ -347,7 +347,7 @@ INT_PlayPWM:				;在中断里调用
 ; 输出: 以非阻塞方式触发一次按键音计时。
 ; 调试: 看 D_KeyTone、D_ToneOn 与 R_KeyToneTm 的联动。
 F_PlayKeyTone:		;键音
-		%btst	R_KeyFlag1,D_NoKeyTone,?Dis_KeyTone		
+;		%btst	R_KeyFlag1,D_NoKeyTone,?Dis_KeyTone		
 		%btst	R_KeyFlag,D_KeyTone,F_EnKeyTone		
 	?Dis_KeyTone:	
 		RTS	
@@ -384,7 +384,7 @@ F_PlayKeyTone:		;键音
 ; 输出: 触发按键音、禁止重复释放，并在背光已亮时续时到 8 秒。
 ; 调试: 看 D_KeyTone、D_KeyRelDis、R_BLTime、AddOthers 是否同步更新。
 F_UpdateKey:						
-		%bits	R_KeyFlag,D_KeyTone
+;		%bits	R_KeyFlag,D_KeyTone
 		%bits	R_KeyFlag,D_KeyRelDis	
 		LDA		R_BLTime
 		BEQ		F_UpdateKey2
@@ -408,21 +408,21 @@ F_2Hz_Cnt:
 CheckKeyHoldTimeout:
 		jsr		Check_SetBackTime
 		JSR		F_Check_LED
-		JMP		F_Check_Temp
+;		JMP		F_Check_Temp
 ;		RTS
 		
-; 输入: 最大/最小温度保持标志和保持计时。
-; 输出: 到时后清掉极值保持状态。
-; 调试: 看 R_TempTime 归零时 D_MaxTemp/D_MinTemp 是否清除。
-F_Check_Temp:
-		%btsf	R_TempFlag1,(D_MaxTemp+D_MinTemp),?Exit_Check
-		LDA		R_TempTime
-		BEQ		?Exit_Check
-		DEC		R_TempTime
-		BNE		?Exit_Check
- 		%bitr	R_TempFlag1,(D_MaxTemp+D_MinTemp) 
-		?Exit_Check:		
-		RTS		
+; ; 输入: 最大/最小温度保持标志和保持计时。
+; ; 输出: 到时后清掉极值保持状态。
+; ; 调试: 看 R_TempTime 归零时 D_MaxTemp/D_MinTemp 是否清除。
+; F_Check_Temp:
+; 		%btsf	R_TempFlag1,(D_MaxTemp+D_MinTemp),?Exit_Check
+; 		LDA		R_TempTime
+; 		BEQ		?Exit_Check
+; 		DEC		R_TempTime
+; 		BNE		?Exit_Check
+;  		%bitr	R_TempFlag1,(D_MaxTemp+D_MinTemp) 
+; 		?Exit_Check:		
+; 		RTS		
 	
 ; 输入: 自动返回计时 R_SetBack。
 ; 输出: 计时归零后退出设置态并请求界面刷新。
@@ -468,8 +468,8 @@ F_initSet:
 		STA		R_Set
 		LDA		#C_Sleep20Sec
 		STA		R_SetBack
-		JMP		F_Start_RFCMM_Value
-;		RTS
+;		JMP		F_Start_RFCMM_Value
+		RTS
 	
 .end
 

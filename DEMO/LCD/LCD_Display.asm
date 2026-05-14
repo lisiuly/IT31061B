@@ -43,48 +43,48 @@ R_OutdoorNoDataDash	ds	1
 .CODE
 .INCLUDE	LCD\LCD_Display.tab
 
-;===================================================================
-; Shared record initialization helper, still used by KEY.asm.
-;===================================================================
-.PUBLIC			F_Start_RFCMM_Value
-; 输入: 当前已经准备好的室内温湿度显示缓存与符号标志。
-; 输出: 初始化温湿度最大/最小记录缓存，供上电后极值与记录页复用。
-; 调试: 看 R_TempMin/Max、R_MIN/MAXDispTemper_F、R_HumMin/Max 是否被当前值覆盖。
-F_Start_RFCMM_Value:
-	%bitr	R_TempFlag1,(D_MaxTemp+D_MinTemp)
-	LDA		#00H
-	LDA		R_DispTemper+0
-	STA		R_TempMin+0
-	STA		R_TempMax+0
-	LDA		R_DispTemper+1
-	STA		R_TempMin+1
-	STA		R_TempMax+1
-	LDA		R_DispTemper_F
-	STA		R_MINDispTemper_F
-	STA		R_MAXDispTemper_F
+; ;===================================================================
+; ; Shared record initialization helper, still used by KEY.asm.
+; ;===================================================================
+; .PUBLIC			F_Start_RFCMM_Value
+; ; 输入: 当前已经准备好的室内温湿度显示缓存与符号标志。
+; ; 输出: 初始化温湿度最大/最小记录缓存，供上电后极值与记录页复用。
+; ; 调试: 看 R_TempMin/Max、R_MIN/MAXDispTemper_F、R_HumMin/Max 是否被当前值覆盖。
+; F_Start_RFCMM_Value:
+; 	%bitr	R_TempFlag1,(D_MaxTemp+D_MinTemp)
+; 	LDA		#00H
+; 	LDA		R_DispTemper+0
+; 	STA		R_TempMin+0
+; 	STA		R_TempMax+0
+; 	LDA		R_DispTemper+1
+; 	STA		R_TempMin+1
+; 	STA		R_TempMax+1
+; 	LDA		R_DispTemper_F
+; 	STA		R_MINDispTemper_F
+; 	STA		R_MAXDispTemper_F
 
-	LDA		R_DispTemper_F+1
-	STA		R_MINDispTemper_F+1
-	STA		R_MAXDispTemper_F+1
+; 	LDA		R_DispTemper_F+1
+; 	STA		R_MINDispTemper_F+1
+; 	STA		R_MAXDispTemper_F+1
 
-	LDA		R_DispHum
-	STA		R_HumMax
-	STA		R_HumMin
+; 	LDA		R_DispHum
+; 	STA		R_HumMax
+; 	STA		R_HumMin
 
-	LDA		R_SpecFlag
-	STA		R_TempMax_Sign
-	STA		R_TempMin_Sign
+; 	LDA		R_SpecFlag
+; 	STA		R_TempMax_Sign
+; 	STA		R_TempMin_Sign
 
-	LDA		R_TempFlag
-	AND		#D_TempFReg
-	ORA		R_TempMax_Sign
-	STA		R_TempMax_Sign
+; 	LDA		R_TempFlag
+; 	AND		#D_TempFReg
+; 	ORA		R_TempMax_Sign
+; 	STA		R_TempMax_Sign
 
-	LDA		R_TempFlag
-	AND		#D_TempFReg
-	ORA		R_TempMin_Sign
-	STA		R_TempMin_Sign
-	RTS
+; 	LDA		R_TempFlag
+; 	AND		#D_TempFReg
+; 	ORA		R_TempMin_Sign
+; 	STA		R_TempMin_Sign
+; 	RTS
 
 ;==============================================================================
 ; 产品显示框架
@@ -560,6 +560,7 @@ Disp_ProductShowRFStateIcon:
 			LDA		R_RF1Flags,X
 			AND		#D_RFValid
 			BEQ		Disp_ProductShowRFStateOff
+			JMP		Disp_ProductShowRFStateOn
 	Disp_ProductShowRFStateBlink:
 			LDA		R_TimeStatus
 			AND		#HalfSecToggle
@@ -648,6 +649,13 @@ Disp_ProductCurrentTempF:
 			LDA		R_TempBuf+5
 			AND		#0F0H
 			BEQ		Disp_ProductCurrentTempF_No100
+			LDA		R_TempBuf+5
+			AND		#0FH
+			BNE		Disp_ProductCurrentTempF_Show100
+			LDA		#00H
+			LDX		#T_CurTeH
+			JSR		F_LcdDisplayDigital
+	Disp_ProductCurrentTempF_Show100:
 			LDX		#T_CurTe100
 			JMP		Display_OneBit
 
@@ -933,12 +941,18 @@ Disp_ProductOutdoorTempC_Positive:
 ; 输出: 刷新室外华氏温度，并在超规格时显示 HH/LL/负号/100 图标。
 ; 调试: 看 158.0F / -40.0F 边界附近以及负号、100 图标是否正确。
 Disp_ProductOutdoorTempF:
+			LDA		R_TempBuf+5
+			STA		R_TempBuf+4
 			LDX		R_TempBuf+5
 			LDA		R_TempBuf+6
 			JSR		F_CHANGE_CF
+			LDA		R_TempBuf+4
+			AND		#80H
+			BEQ		Disp_ProductOutdoorTempF_CheckHH
 			LDA		R_TempFlag
 			AND		#D_TempFReg
 			BNE		Disp_ProductOutdoorTempF_CheckLL
+	Disp_ProductOutdoorTempF_CheckHH:
 			LDA		X_M
 			CMP		#06H
 			BCC		Disp_ProductOutdoorTempF_DoConvert
@@ -973,16 +987,27 @@ Disp_ProductOutdoorTempF:
 			STA		R_TempBuf+6
 			JSR		Disp_ProductRenderOutdoorTempFromBuf
 			JSR		Disp_ProductShowOutdoorUnitF
+			LDA		R_TempBuf+4
+			AND		#80H
+			BEQ		Disp_ProductOutdoorTempF_Positive
 			; F_CHANGE_CF 把华氏负号写回 R_TempFlag.D_TempFReg，不在 X_M 里。
 			LDA		R_TempFlag
 			AND		#D_TempFReg
 			BNE		Disp_ProductOutdoorTempF_Neg
+	Disp_ProductOutdoorTempF_Positive:
 			LDX		#T_OutTeNeg
 			JSR		NoDisplay_OneBit
 			; 室外华氏温度同样按 0.1 度存 BCD，100 图标应看高字节高 nibble。
 			LDA		R_TempBuf+5
 			AND		#0F0H
 			BEQ		Disp_ProductOutdoorTempF_No100
+			LDA		R_TempBuf+5
+			AND		#0FH
+			BNE		Disp_ProductOutdoorTempF_Show100
+			LDA		#00H
+			LDX		#T_OutCurTeH
+			JSR		F_LcdDisplayDigital
+	Disp_ProductOutdoorTempF_Show100:
 			LDX		#T_OutCurTe100
 			JMP		Display_OneBit
 Disp_ProductOutdoorTempF_No100:

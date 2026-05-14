@@ -54,17 +54,17 @@ C_MaxVol	equ	45
 %F_InitINT:		.MACRO
 		LDA		#00000111b		;2HZ £¨bit0~2) for 111 is 4K 			;timeBaseA 2hz timeBaseB 16hz
 		STA		P_TIMER_TimeBase_Sel		
-		LDA		#D_2KHzInt+D_128HzInt+D_TMBAInt+D_TMBBInt;+D_Timer0Int
+		LDA		#D_128HzInt+D_TMBAInt+D_TMBBInt;D_Timer0Int+
 		STA		P_INT_Ctrl
-		LDA		#00
-		STA		P_INT_Ctrl2		;disable TMR1 INT
+;		LDA		#00
+;		STA		P_INT_Ctrl2		;disable TMR1 INT
 ;		LDA		#D_TimerEn+D_TimerFallEdge+D_TimerSrcA_VDD+D_TimerSrcB_LF
 ;		STA		P_TIMER_Timer0_Ctrl
-;		LDA		#0xC8
-;		LDA		#0xFC
-;		STA		P_TIMER_TM0Data_LB		;8k
-;		LDA		#0xFF
+;		LDA		#0FCH
+;		STA		P_TIMER_TM0Data_LB		; Timer0 reload = FFFCh, scope now shows about 4.096kHz IRQ on this board.
+;		LDA		#0FFH
 ;		STA		P_TIMER_TM0Data_HB
+;		STA		P_TIMER_TM0Load_Ctrl
 	.ENDM
 ;;============================================================================
 ;Macro Name: %DisableLCD
@@ -366,10 +366,10 @@ C_MaxVol	equ	45
 		LDA		#00000000b		
 		STA		P_IO_PortB_Data		;PB1·äÃùÆ÷£¬PB0±³¹â
 
-		LDA		#00H
+		LDA		#C_PC7Dir
 		STA		P_IO_PortC_Dir
 		LDA		#00000000b
-		STA		P_IO_PortC_Data	
+		STA		P_IO_PortC_Data		; PC7 debug output, default low.
 		
 		LDA		#00h
 		STA		P_IO_PortD_Attrib		

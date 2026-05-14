@@ -147,29 +147,30 @@ L_PowerOn:  ;---------------------;POWER UP	开机
 		%F_Initinal_IO	
 		JSR		F_ResetRealTimeClock	
 		%bits	R_TimeStatus,AddOthers
-		; %bits	R_TempFlag,D_WithRTRH
+		LDA		#D_LVD_24		; 上电/唤醒后统一把低电检测门槛拉到 2.4V
+		STA		P_LVD_Ctrl
 		
 		%FillLcdDpram #FFH
 		CLI		
-		JSR		F_UpdateTHFromGXHTV4		;上电同步读取一次温湿度
-;		JSR		F_DC_Judge			
+		JSR		F_UpdateTHFromGXHTV4		;上电同步读取一次温湿度		
 	Wait1_2Sec:
 		%WatchDogClear		
 		LDA		R_2Hz
 		CMP		#04H
-		BCC		Wait1_2Sec_CheckEnd
-		LDA		R_BLTime
-		BNE		Wait1_2Sec_CheckEnd
+		BCC		Wait1_2Sec
+;		LDA		R_BLTime
+;		BNE		Wait1_2Sec_CheckEnd
 		; 先全显 2 秒，最后 1 秒再点亮背光，对齐新的上电时序要求。
 		JSR		F_backlightOpen
 		LDA		#01H
 		STA		R_BLTime
 	Wait1_2Sec_CheckEnd:
+		%WatchDogClear	
 		LDA		R_2Hz
 		CMP		#06H		
-		BCC		Wait1_2Sec
-		LDA		R_BLTime
-		BEQ		Jump_DispAll
+		BCC		Wait1_2Sec_CheckEnd
+;		LDA		R_BLTime
+;		BEQ		Jump_DispAll
 		; 上电等待环不会跑正常背光倒计时，所以 1 秒到点后手动关灯。
 		LDA		#00H
 		STA		R_BLTime
@@ -190,10 +191,9 @@ L_PowerOn:  ;---------------------;POWER UP	开机
 ;================================================
 L_ServiceLoop:
 		%WatchDogClear
+		JSR		F_RF_ServicePendingParse
 		JSR		F_KeyScan		;按键扫描
 		JSR		F_PlayKeyTone	;按键音
-	
-;		JSR		F_DC_Judge
 		JSR		F_Display
 		
 	?L_NoDispNormal:
@@ -209,7 +209,8 @@ L_ServiceLoop:
 		BEQ		$+5
 		JMP		F_128HzWakeUp
 		
-	?Next:	
+
+	?Next_CheckSleepGate:
 		%btst	R_LEDFlag,D_LED_ON,L_ServiceLoop	
 		%btst	R_KeyFlag,D_ToneOn,L_ServiceLoop		
 

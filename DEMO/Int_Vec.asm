@@ -40,7 +40,7 @@
 ;==========================================
 ; External declare area
 ;==========================================
-.EXTERN		F_RF_Service2KHzSample
+.EXTERN		F_RF_Service8KHzSample
 
 ;==========================================
 ; Public declare area
@@ -74,7 +74,7 @@ V_IRQ:
 	AND		#D_TMBBInt
 	BEQ		?L_128HZ_INT
 	STA		P_INT_TimeBaseB_Clear	;如果不是定时器B中断，则跳转到下一步处理
-	JSR		INT_PlayPWM
+		JSR		F_RF_Service8KHzSample		
 	 ; 如果声音开启，则执行声音处理
     LDA     R_SoundOn
     BNE     ?On    ; 如果声音开启，则跳转到?On处理
@@ -86,21 +86,20 @@ V_IRQ:
 	LDA		P_IO_PortB_Data
 	EOR		#D_Bit1
 	STA		P_IO_PortB_Data
-;	STA		R_PortD_Data_Buf
-	JMP		?L_128HZ_INT
+	JMP		?L_Timer0_INT
 ;--------------------------------
 ?DisTone:
 	LDA		P_IO_PortB_Data
 	AND		#.not.D_Bit1
-;	STA		R_PortD_Data_Buf
 	STA		P_IO_PortB_Data
 
-?L_2KHz_INT:
-		LDA		R_INTFlag
-		AND		#D_2KHzInt
-		BEQ		?L_128HZ_INT
-		STA		P_INT_2KHz_Clear
-		JSR		F_RF_Service2KHzSample
+	; RF 收码改走 Timer0 采样；当前板上实测这条 IRQ 约 4.096kHz，足够看见 469us 高脉冲。
+?L_Timer0_INT:
+;		LDA		R_INTFlag
+;		AND		#D_Timer0Int
+;		BEQ		?L_128HZ_INT
+;		STA		P_INT_Timer0_Clear
+
 
 ?L_128HZ_INT:	; 检查是否为128Hz定时器中断
 		LDA		R_INTFlag
@@ -120,10 +119,10 @@ V_IRQ:
 	
 	?Check_ToneTime:; 检查按键音时间是否为零，如果不为零则递减
 		LDA	R_KeyToneTm
-		beq	?L_2hz_INT
+		beq	?L_Next
 		DEC	R_KeyToneTm
 		BNE	?L_2hz_INT
-
+	?L_Next:
 		LDA	R_KeyFlag
 		AND	#(.not.(D_KeyTone+D_ToneOn))
 		STA	R_KeyFlag

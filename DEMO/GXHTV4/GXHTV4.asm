@@ -257,27 +257,37 @@ CAL_TEMP_OUT:
 ;======================================================================
 ;======================================================================
 CAL_IC_HUM:   ;IN:CNT4,CNT5
-    ;T=100* S / 65533
+    ; RH = -6 + 125 * S / 65535，整数链路对结果夹到 0..100。
     	LDA      	CNT4
 		STA        	X_H
     	LDA       	CNT5
     	STA        	X_L
-    	LDA      	#064H        ;125 = 7D
+	    	LDA      	#07DH
     	STA     	Y_L
     	LDA			#00
     	STA        	Y_H
     	JSR         MUL_HEX     ;/65536=10000H
     	LDA	    	#0FFH
     	STA	   		Y_H
-    	LDA	    	#0FDH
+		LDA	    	#0FFH
     	STA    		Y_L
-		JSR			DIV_HEX		;OUT:X
+		JSR			DIV_HEX		;OUT:X = floor(125 * S / 65535)
+
+		SEC
 		LDA			X_L
+		SBC			#06H
+		BCS			CAL_HUM_CLAMP_HIGH
+		LDA			#00H
 		STA			HUM
-;======================
-;		BBR7		HUM,CAL_HUM_OUT
-;		LDA			#00H
-;   	STA             HUM
+		RTS
+
+CAL_HUM_CLAMP_HIGH:
+		CMP			#064H
+		BCC			CAL_HUM_STORE
+		LDA			#064H
+
+CAL_HUM_STORE:
+		STA			HUM
 CAL_HUM_OUT:
 ;==========================================
 ;==========================================
