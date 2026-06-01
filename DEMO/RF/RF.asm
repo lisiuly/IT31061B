@@ -183,7 +183,7 @@ C_RFStopLowMaxSample		equ	16H
 ;
 ; 包格式(MSB first，bit0 先进 Packet0 bit7):
 ; Packet0 = 发射器 ID 8bit。
-; Packet1 bit7 = 电池标志(1=正常, 0=低电), bit6 = 当前未用,
+; Packet1 bit7 = 电池标志(1=低电, 0=正常), bit6 = 当前未用,
 ;         bit5~4 = 通道码, bit3~0 = 温度高 4bit(12bit 补码的高位，bit3 为符号位)。
 ; Packet2 = 温度低 8bit。
 ; Packet3 高 4bit 当前未用, 低 4bit = 湿度高 4bit。
@@ -1566,8 +1566,8 @@ RF_LoadPacketTempReady:
 		STA		R_RF1Hum,X
 		LDA		R_RFPacket1
 		AND		#80H
-		BNE		RF_LoadPacketBatteryNormal
-		; Packet1 bit7 = 0 表示低电。
+		BEQ		RF_LoadPacketBatteryNormal
+		; Packet1 bit7 = 1 表示低电。
 		LDA		R_RF1Flags,X
 		ORA		#D_RFLowBat
 		STA		R_RF1Flags,X

@@ -209,7 +209,26 @@ BatteryClearCounter:
 
 BatteryExit:
 	RTS
-
+;==========================================
+; 函数: F_RetryFirstTHRead
+; 作用: 若 D_FirstReadRetry 标志置位则重读一次温湿度，
+;        成功则清标志，失败则保持标志等待下次重试。
+;==========================================
+.public		F_RetryFirstTHRead
+F_RetryFirstTHRead:
+		LDA		R_TempFlag
+		AND		#D_FirstReadRetry
+		BEQ		?RetryExit
+		JSR		F_UpdateTHFromGXHTV4
+		LDA		TEMP_INTEGAH
+		ORA		TEMP_INTEGAL
+		ORA		HUM
+		BEQ		?RetryExit
+		LDA		R_TempFlag
+		AND		#.not.D_FirstReadRetry
+		STA		R_TempFlag
+?RetryExit:
+		RTS
 ;-------------------------------------------------------
 ; 输入：R_TempCH, R_TempCL - 温度值
 ;       R_HUM - 湿度值

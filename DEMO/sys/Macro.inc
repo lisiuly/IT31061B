@@ -266,7 +266,7 @@ C_MaxVol	equ	45
 		LDA		#(D_Duty_1_5+D_Bias_1_3+D_ScanEnable)
 		STA		P_LCD_Ctrl		;1/11duty,1/4bias,normal scan
 		
-		LDA     #D_VLCD_28            ;VLCD = 4.5V (max value)
+		LDA     #D_VLCD_30            ;VLCD = 4.5V (max value)
 ;		LDA		#D_VLCD_VDD
 		STA     P_LCD_VLCD_Ctrl
 	

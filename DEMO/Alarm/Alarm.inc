@@ -5,7 +5,7 @@
 .EXTERN		F_JudgeRFC
 .EXTERN		F_UpdateTHFromGXHTV4
 .EXTERN		F_CheckLowBattery
-
+.EXTERN		F_RetryFirstTHRead
 .EXTERN		CalculateRFC    
 
 .EXTERN		R_TempCH

@@ -66,6 +66,7 @@ R_TempFlag		ds	1
 D_TempF			equ	0x01	;1 for 'F;  0 for 'C ，上电默认为F此Bit需置１
 D_TempError		equ	0x02	;温度出错标志
 D_TempFReg		equ	0x04	;TempF for -
+D_FirstReadRetry	equ	0x08	;上电第一次I2C读数为0时重试标志
 
 INDF0			ds	1
 TEMP_INTEGAH	ds	1

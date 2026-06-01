@@ -152,9 +152,21 @@ L_PowerOn:  ;---------------------;POWER UP	开机
 		
 		%FillLcdDpram #FFH
 		CLI		
-		JSR		F_UpdateTHFromGXHTV4		;上电同步读取一次温湿度		
+		; 上电后先尝试读取一次温湿度（此时传感器可能未就绪）
+		; 若数据全为0则置 D_FirstReadRetry 标志，后续在全显计时和主循环中重试
+		JSR		F_UpdateTHFromGXHTV4
+		LDA		TEMP_INTEGAH
+		ORA		TEMP_INTEGAL
+		ORA		HUM
+		BNE		L_PowerOn_ReadOk
+		LDA		R_TempFlag
+		ORA		#D_FirstReadRetry
+		STA		R_TempFlag
+L_PowerOn_ReadOk:
+
 	Wait1_2Sec:
-		%WatchDogClear		
+		%WatchDogClear
+		JSR		F_RetryFirstTHRead
 		LDA		R_2Hz
 		CMP		#04H
 		BCC		Wait1_2Sec
@@ -165,7 +177,8 @@ L_PowerOn:  ;---------------------;POWER UP	开机
 		LDA		#01H
 		STA		R_BLTime
 	Wait1_2Sec_CheckEnd:
-		%WatchDogClear	
+		%WatchDogClear
+		JSR		F_RetryFirstTHRead
 		LDA		R_2Hz
 		CMP		#06H		
 		BCC		Wait1_2Sec_CheckEnd
@@ -187,10 +200,13 @@ L_PowerOn:  ;---------------------;POWER UP	开机
 		JSR		F_RF_StartLongReceive
 		%bits	R_KeyFlag,D_KeyTone	
 		JSR		F_PlayKeyTone
-			
+
+
+
 ;================================================
 L_ServiceLoop:
 		%WatchDogClear
+		JSR		F_RetryFirstTHRead
 		JSR		F_RF_ServicePendingParse
 		JSR		F_KeyScan		;按键扫描
 		JSR		F_PlayKeyTone	;按键音
