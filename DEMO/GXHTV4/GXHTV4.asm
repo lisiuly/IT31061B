@@ -100,7 +100,7 @@ I2C_WRITE_BIT		.equ				%00000000
 I2C_READ_BIT		.equ				%00000001 
 
 ; GXHTV4 的测量命令是 1 byte，不是旧 SHT3x 风格的 16bit 0x2400。
-CMD_MEASURE_TH		.EQU				0x24
+CMD_MEASURE_TH		.EQU				0xF6
 
 
 
@@ -158,27 +158,26 @@ F_ReadGXHTV4Data_Exit:
 		RTS
 
 F_GXHTV4WaitReady:
-		; 0x24 是 0.1s 加热测量命令，这里等待约 160ms，先把“时间不够”排除掉。
-		LDA			#02H
-		PHA
+    ; 10ms 延时（原 160ms 改为 10ms）
+    LDA     #01H          ; 外层循环 1 次
+    PHA
 F_GXHTV4WaitReady_A:
-		LDY			#0FFH
+    LDY     #20H          ; Y = 32 (0x20)
 F_GXHTV4WaitReady_Y:
-		LDX			#0FFH
+    LDX     #0FFH         ; X = 255 (0xFF)
 F_GXHTV4WaitReady_X:
-		DEX
-		BNE			F_GXHTV4WaitReady_X
-		DEY
-		BNE			F_GXHTV4WaitReady_Y
-		PLA
-		SEC
-		SBC			#01H
-		BEQ			F_GXHTV4WaitReady_Done
-		PHA
-		BNE			F_GXHTV4WaitReady_A
-		
+    DEX
+    BNE     F_GXHTV4WaitReady_X
+    DEY
+    BNE     F_GXHTV4WaitReady_Y
+    PLA
+    SEC
+    SBC     #01H
+    BEQ     F_GXHTV4WaitReady_Done
+    PHA
+    BNE     F_GXHTV4WaitReady_A
 F_GXHTV4WaitReady_Done:
-		RTS
+    RTS
 
 ;======================================================================
 ;.COMMENT	@

@@ -1,6 +1,6 @@
 #####################################################################
 #
-#	Created by 6502 ASM Project		2026-6-1 17:33:09
+#	Created by 6502 ASM Project		2026-6-2 10:29:44
 #
 #####################################################################
 
@@ -52,7 +52,7 @@ OBJFILES		= \
 	".\RELEASE\ALARM.OBJ"\
 	".\RELEASE\RF.OBJ"
 
-OUTPUTFILES		=  \
+OUTPUTFILES		= "$(IMDIR)\*.resobj" \
 				  "$(IMDIR)\*.asm" \
 				  "$(IMDIR)\*.lst" \
 				  "$(IMDIR)\*.obj" \
@@ -107,7 +107,7 @@ BININFOFILE		= "$(TOOLSDIR)\BinInfo\BinInfo.conf"
 ".\RELEASE\D_I2C.OBJ" : ".\I2C\D_I2C.ASM" ".\GPL813X.INC"
 	$(ASM) $(ASMFLAG) -o ".\Release\D_I2C.OBJ" ".\I2C\D_I2C.asm"
 	$(ECHO)
-".\RELEASE\ALARM.OBJ" : ".\ALARM\ALARM.ASM" ".\GPL813X.INC" ".\SYS\PROJECT.INC" ".\SYS\MACRO.INC" ".\KEY\KEY.INC" ".\RTC\RTC.INC" ".\LCD\LCD_DISPLAY.INC" ".\RF\RF.INC" ".\GXHTV4\GXHTV4.INC"
+".\RELEASE\ALARM.OBJ" : ".\ALARM\ALARM.ASM" ".\GPL813X.INC" ".\SYS\PROJECT.INC" ".\SYS\MACRO.INC" ".\KEY\KEY.INC" ".\RTC\RTC.INC" ".\LCD\LCD_DISPLAY.INC" ".\RF\RF.INC" ".\GXHTV4\GXHTV4.INC" ".\I2C\D_I2C.INC"
 	$(ASM) $(ASMFLAG) -o ".\Release\ALARM.OBJ" ".\Alarm\Alarm.asm"
 	$(ECHO)
 ".\RELEASE\RF.OBJ" : ".\RF\RF.ASM" ".\GPL813X.INC" ".\SYS\MACRO.INC" ".\RTC\RTC.INC"

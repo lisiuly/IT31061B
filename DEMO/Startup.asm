@@ -147,7 +147,7 @@ L_PowerOn:  ;---------------------;POWER UP	开机
 		%F_Initinal_IO	
 		JSR		F_ResetRealTimeClock	
 		%bits	R_TimeStatus,AddOthers
-		LDA		#D_LVD_24		; 上电/唤醒后统一把低电检测门槛拉到 2.4V
+		LDA		#D_LVD_27		; 上电/唤醒后统一把低电检测门槛拉到 2.4V
 		STA		P_LVD_Ctrl
 		
 		%FillLcdDpram #FFH
@@ -155,9 +155,10 @@ L_PowerOn:  ;---------------------;POWER UP	开机
 		; 上电后先尝试读取一次温湿度（此时传感器可能未就绪）
 		; 若数据全为0则置 D_FirstReadRetry 标志，后续在全显计时和主循环中重试
 		JSR		F_UpdateTHFromGXHTV4
-		LDA		TEMP_INTEGAH
-		ORA		TEMP_INTEGAL
-		ORA		HUM
+		LDA		R_SaveData+0
+		ORA		R_SaveData+1
+		ORA		R_SaveData+3
+		ORA		R_SaveData+4		
 		BNE		L_PowerOn_ReadOk
 		LDA		R_TempFlag
 		ORA		#D_FirstReadRetry
@@ -206,10 +207,10 @@ L_PowerOn_ReadOk:
 ;================================================
 L_ServiceLoop:
 		%WatchDogClear
-		JSR		F_RetryFirstTHRead
-		JSR		F_RF_ServicePendingParse
 		JSR		F_KeyScan		;按键扫描
 		JSR		F_PlayKeyTone	;按键音
+		JSR		F_RetryFirstTHRead
+		JSR		F_RF_ServicePendingParse
 		JSR		F_Display
 		
 	?L_NoDispNormal:

@@ -12,7 +12,7 @@
 .INCLUDE	LCD\LCD_Display.inc
 .INCLUDE	RF\RF.inc
 .INCLUDE	GXHTV4\GXHTV4.inc
-
+.INCLUDE		I2C\D_I2C.inc
 .EXTERN		F_ReadGXHTV4Data
 .EXTERN		TEMP_INTEGAH
 .EXTERN		TEMP_INTEGAL
@@ -220,9 +220,10 @@ F_RetryFirstTHRead:
 		AND		#D_FirstReadRetry
 		BEQ		?RetryExit
 		JSR		F_UpdateTHFromGXHTV4
-		LDA		TEMP_INTEGAH
-		ORA		TEMP_INTEGAL
-		ORA		HUM
+		LDA		R_SaveData+0
+		ORA		R_SaveData+1
+		ORA		R_SaveData+3
+		ORA		R_SaveData+4
 		BEQ		?RetryExit
 		LDA		R_TempFlag
 		AND		#.not.D_FirstReadRetry

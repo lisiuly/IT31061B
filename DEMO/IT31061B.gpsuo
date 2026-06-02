@@ -13,13 +13,13 @@
 		</Breakpoint>
 		<Breakpoint>
 			ClassID="{4993C0DF-0FCE-4D4A-9C53-8119E029EA7B}"
-			Data="665738263136485742503130303B303B313B303B303B303B303B303B303B2E5C4C43445C4C43445F446973706C61792E61736D3B3134303B303B3000"
-		</Breakpoint>
-		<Breakpoint>
-			ClassID="{4993C0DF-0FCE-4D4A-9C53-8119E029EA7B}"
 			Data="6C5138263136485742503130303B303B313B303B303B303B303B303B303B2E5C4C43445C4C43445F446973706C61792E61736D3B3633393B303B3000"
 		</Breakpoint>
 		<Breakpoint>
+		</Breakpoint>
+		<Breakpoint>
+			ClassID="{4993C0DF-0FCE-4D4A-9C53-8119E029EA7B}"
+			Data="A2A038263136485742503130303B303B303B303B303B303B303B303B303B2E5C4758485456345C4758485456342E61736D3B3134313B303B3000"
 		</Breakpoint>
 	</Breakpoints>
 	<UI_ASMConfigPane>
@@ -32,15 +32,15 @@
 			Path=".\\LCD\\LCD_Display.asm"
 			Path=".\\GXHTV4\\GXHTV4.asm"
 			Path=".\\KEY\\KEY.asm"
-			Path=".\\Startup.asm"
 			Path=".\\RF\\RF.inc"
 			Path=".\\sys\\Project.inc"
 			Path=".\\Alarm\\Alarm.asm"
 			Path=".\\GPL813x.inc"
 			Path=".\\Int_Vec.asm"
-			Path=".\\Release\\IT31061B_Report.html"
 			Path=".\\LCD\\LCD_Display.tab"
-			State="9,231,231"
+			Path=".\\I2C\\D_I2C.asm"
+			Path=".\\Startup.asm"
+			State="158,4225,4225"
 		</OpenFiles>
 		<OpenFolders>
 			<{42C7D3BF-1E4E-4D73-B672-714D0422E288}>
@@ -94,119 +94,31 @@
 			Length="1"
 		</Variable>
 		<Variable>
-			Name="R_DispTemper_F"
-			Length="2"
-		</Variable>
-		<Variable>
-			Name="R_SpecFlag"
+			Name="TEMP_INTEGAH"
 			Length="1"
 		</Variable>
 		<Variable>
-			Name="R_TrendFlags"
+			Name="TEMP_INTEGAL"
 			Length="1"
 		</Variable>
 		<Variable>
-			Name="R_TrendTempEqCnt"
+			Name="HUM"
 			Length="1"
 		</Variable>
 		<Variable>
-			Name="R_TrendHumEqCnt"
-			Length="1"
+			Name="R_SaveData"
+			Length="6"
 		</Variable>
 		<Variable>
-			Name="R_BatteryFlags"
-			Length="1"
-		</Variable>
-		<Variable>
-			Name="R_TempMax"
-			Length="2"
-		</Variable>
-		<Variable>
-			Name="R_TempMin"
-			Length="2"
-		</Variable>
-		<Variable>
-			Name="R_HumMax"
-			Length="1"
-		</Variable>
-		<Variable>
-			Name="R_HumMin"
-			Length="1"
-		</Variable>
-		<Variable>
-			Name="RTC"
-			Length="3"
-		</Variable>
-		<Variable>
-			Name="R_TempCH"
-			Length="1"
-		</Variable>
-		<Variable>
-			Name="R_TempCL"
-			Length="1"
-		</Variable>
-		<Variable>
-			Name="R_HUM"
-			Length="1"
-		</Variable>
-		<Variable>
-			Name="R_RFPending0"
-			Length="5"
-		</Variable>
-		<Variable>
-			Name="R_RFPacket0"
-			Length="5"
-		</Variable>
-		<Variable>
-			Name="R_RF1TempH"
+			Name="CNT4"
 			Length="10"
 		</Variable>
 		<Variable>
-			Name="R_RF1TempL"
+			Name="CNT5"
 			Length="10"
 		</Variable>
 		<Variable>
-			Name="R_RFAutoSwitchTm"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_RFViewChannel"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_RFPending0"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_RF1IdH"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_TempBuf"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_TempFlag"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_RFStatus"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_RFLongRecvTm"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_KeyFlag"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name=" R_RF2Flags"
-			Length="10"
-		</Variable>
-		<Variable>
-			Name="R_SpecFlag"
+			Name="CNT6"
 			Length="10"
 		</Variable>
 		<Variable>

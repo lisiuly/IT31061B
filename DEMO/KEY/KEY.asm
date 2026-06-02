@@ -359,6 +359,10 @@ F_PlayKeyTone:		;¼üÒô
 		%bits	R_KeyFlag,D_ToneOn	
 		LDA		#08
 		STA		R_KeyToneTm	
+		?L_Loop:
+		LDA		R_KeyToneTm
+		BNE		?L_Loop
+		%bitr	R_KeyFlag,D_ToneOn
 		?L_KeyToneExit:
 		RTS	
 
