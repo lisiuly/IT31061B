@@ -79,7 +79,8 @@ C_RFStopLowMaxSample		equ	16H
 .EXTERN		R_RF2Hum
 .EXTERN		R_RF2LostCnt
 .EXTERN		R_RF2RetryStage
-
+.EXTERN		R_RF1MissMin	
+C_RFFail60Min			equ	60
 .EXTERN		R_RF3Flags
 .EXTERN		R_RF3IdH
 .EXTERN		R_RF3IdL

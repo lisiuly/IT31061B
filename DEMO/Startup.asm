@@ -193,7 +193,7 @@ L_PowerOn_ReadOk:
 		LDA		P_IO_PortB_Data
 		AND		#.not.D_Bit0
 		STA		P_IO_PortB_Data
-		
+		JSR		F_CheckTempMode
 	Jump_DispAll:
 		%FillLcdDpram #00H 
 		JSR		F_initSet
@@ -253,6 +253,38 @@ L_ServiceLoop:
 		NOP
 		NOP
 		JMP		V_RESET	
+		
+;-------------------------------------------------------
+; 函数: F_CheckTempMode
+; 作用: 检测PD6电平，高→摄氏度模式，低→华氏度模式。
+;       若PD6为高，将其改为输出高电平以锁定模式。
+;-------------------------------------------------------
+.PUBLIC		F_CheckTempMode
+F_CheckTempMode:
+		LDA		P_IO_PortD_Data		; 读取PD口数据
+		AND		#D_Bit6				; 测试PD6
+		BEQ		?SetFahrenheit		; PD6=0 → 华氏度
+		; PD6=1 → 摄氏度
+		LDA		R_SpecFlag
+		AND		#.NOT.D_TF		; 清D_TempF位
+		STA		R_SpecFlag
+		; PD6改为输出高（方向寄存器只写，通过影子寄存器读-改-写）
+		LDA		P_IOD_DIR_Map
+		ORA		#D_Bit6
+		STA		P_IOD_DIR_Map
+		STA		P_IO_PortD_Dir
+		LDA		R_PortD_Data_Buf
+		ORA		#D_Bit6
+		STA		R_PortD_Data_Buf
+		STA		P_IO_PortD_Data
+		RTS
+?SetFahrenheit:
+		; PD6=0 → 华氏度
+		LDA		R_SpecFlag
+		ORA		#D_TF			; 置D_TempF位
+		STA		R_SpecFlag
+		RTS
 
 .END
 
+		

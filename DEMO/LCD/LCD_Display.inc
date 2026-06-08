@@ -24,6 +24,10 @@ R_Display7Times			equ	R_TempBuf+4		;ds	1
 .EXTERN			F_DisplayHLValue
 .EXTERN			F_ClearAllDisplay
 .EXTERN			F_DisplayProductUI
+.EXTERN		R_Disp3s
+.EXTERN		R_OutdoorFlashRun
+.EXTERN		R_OutdoorBlankPending
+.EXTERN		R_OutdoorBlanking
 ;====================================================
 .EXTERN			F_Start_RFCMM_Value	
 

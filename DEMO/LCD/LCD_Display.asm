@@ -38,6 +38,14 @@
 
 R_TempBuf		ds	7
 R_OutdoorNoDataDash	ds	1
+R_Disp3s			ds	1
+.PUBLIC		R_Disp3s
+R_OutdoorFlashRun	ds	1
+.PUBLIC		R_OutdoorFlashRun
+R_OutdoorBlankPending	ds	1
+.PUBLIC		R_OutdoorBlankPending
+R_OutdoorBlanking	ds	1
+.PUBLIC		R_OutdoorBlanking
 
 ;=======================================================================
 .CODE
@@ -409,8 +417,11 @@ Disp_ProductHasOutdoorData:
 			LDA		R_RF1Flags,X
 			AND		#D_RFLost
 			BEQ		Disp_ProductHasOutdoorData_Yes
-			; 连续 3 次失败只灭 RF 图标，但常规同步还在，所以继续显示最后值；
-			; 只有同步被关掉且当前不在长接收里，才切到 60 分钟后的虚线闪烁态。
+			; 掉码已达 60 分钟以上：即使长接收期间也不显示旧数据，保持 -- 闪烁
+			LDA		R_RF1MissMin,X
+			CMP		#C_RFFail60Min
+			BCS		Disp_ProductHasOutdoorData_No
+			; 掉码不足 60 分钟：同步未关时继续显示最后值
 			LDA		R_RF1SyncTm,Y
 			CMP		#C_RFSyncIdle
 			BNE		Disp_ProductHasOutdoorData_Yes
@@ -449,34 +460,29 @@ Disp_ProductIsOutdoorLostFlashMode_No:
 			RTS
 
 
-; 输入: RTC 秒值；调用方已先确认处于 lost flash 模式。
+; 输入: 调用方已先确认处于 lost flash 模式。
 ; 输出: SEC=本帧应显示 dash，CLC=本帧应显示 blank。
-; 调试: 看 RTC+2 每跨 3 秒时返回相位是否按规格翻转。
+; R_Disp3s 由 F_2Hz_Cnt 以 2Hz 递减，到 0 后置 R_OutdoorBlankPending。
+; F_2Hz_Cnt 下一 tick 清掉 BlankPending 并重装 R_Disp3s，实现精确 0.5s 熄灭。
+; 效果: 显示 3 秒 → 熄灭 0.5 秒 → 循环。
 Disp_ProductIsOutdoorLostFlashOn:
-			; 调用方已先确认处于 60 分钟后的 lost flash 模式，这里只负责算 3 秒相位。
-			LDA		RTC+2
-			PHA
-			AND		#0FH
-			STA		R_TempBuf
-			PLA
-			AND		#0F0H
-			LSR		A
-			LSR		A
-			LSR		A
-			LSR		A
-			CLC
-			ADC		R_TempBuf
-	Disp_ProductIsOutdoorLostFlashOn_Mod3:
-			CMP		#03H
-			BCC		Disp_ProductIsOutdoorLostFlashOn_Check
-			SEC
-			SBC		#03H
-			JMP		Disp_ProductIsOutdoorLostFlashOn_Mod3
-	Disp_ProductIsOutdoorLostFlashOn_Check:
-			BEQ		Disp_ProductIsOutdoorLostFlashOn_Yes
+			LDA		R_OutdoorBlankPending
+			BNE		?FlashBlankStart
+			LDA		R_Disp3s
+			BNE		?FlashYes
+			; R_Disp3s=0 且无 BlankPending：踢一脚 Blanking 启动重装
+			LDA		#1
+			STA		R_OutdoorBlanking
+			JMP		?FlashBlank
+?FlashBlankStart:
+			LDA		#00
+			STA		R_OutdoorBlankPending
+			LDA		#1
+			STA		R_OutdoorBlanking
+?FlashBlank:
 			CLC
 			RTS
-	Disp_ProductIsOutdoorLostFlashOn_Yes:
+?FlashYes:
 			SEC
 			RTS
 
@@ -488,12 +494,20 @@ Disp_ProductIsOutdoorLostFlashOn:
 			LDA		#01H
 			STA		R_OutdoorNoDataDash
 			JSR		Disp_ProductIsOutdoorLostFlashMode
-			BCC		Disp_ProductCacheOutdoorDashDecision_End
+			BCC		Disp_ProductCacheOutdoorDashDecision_NoFlash
+			; 进入闪模式：启动 2Hz 计数
+			LDA		#01H
+			STA		R_OutdoorFlashRun
 			JSR		Disp_ProductIsOutdoorLostFlashOn
 			BCS		Disp_ProductCacheOutdoorDashDecision_End
 			LDA		#00H
 			STA		R_OutdoorNoDataDash
-	Disp_ProductCacheOutdoorDashDecision_End:
+			RTS
+Disp_ProductCacheOutdoorDashDecision_NoFlash:
+			; 退出闪模式：停止 2Hz 计数
+			LDA		#00H
+			STA		R_OutdoorFlashRun
+Disp_ProductCacheOutdoorDashDecision_End:
 			RTS
 
 

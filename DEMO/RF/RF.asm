@@ -131,6 +131,7 @@ C_RFStopLowMaxSample		equ	16H
 .PUBLIC		R_RF1TempL
 .PUBLIC		R_RF1Hum
 .PUBLIC		R_RF1LostCnt
+.PUBLIC		R_RF1MissMin
 .PUBLIC		R_RF1RetryStage
 
 .PUBLIC		R_RF2Flags
@@ -534,6 +535,9 @@ RF_CheckLongReceive:
 RF_StopLongReceive_Timeout:
 		; 手动清通道后若 3 分钟仍未收到，需要从这里转入掉码分钟规则。
 		JSR		F_RF_ArmManualRetryChannels
+		; 3 分钟到了仍未配对的通道（未手动清但也没收到包），关闭其 NeedPair，
+		; 之后必须手动按 CH 键才能重新打开配对。
+		JSR		F_RF_CloseUnpairedChannels
 		; 3 分钟长接收到点后，统一走 StopLongReceive 收口并关闭 RF_EN。
 		JSR		F_RF_StopLongReceive
 
@@ -554,7 +558,6 @@ F_RF_ArmManualRetryChannels:
 
 ; 输入: X=通道记录偏移(0/10/20)。
 ; 输出: ManualRetry 且仍 NeedPair 的通道，超时后开始按掉码分钟规则累计。
-; 调试: 看 Flags、LostCnt、MissMin、RetryStage 是否在这里被初始化。
 F_RF_ArmSelectedManualRetryChannel:
 		LDA		R_RF1Flags,X
 		AND		#D_RFManualRetry
@@ -574,6 +577,50 @@ F_RF_ArmSelectedManualRetryChannel:
 		STA		R_RF1RetryStage,X
 		STA		R_RF1RetryTm,X
 RF_ArmSelectedManualRetryChannel_End:
+		RTS
+
+; 输入: 无。
+; 输出: 把 3 分钟长接收后仍未配对的通道（NeedPair 且非 ManualRetry）关闭，
+;        清除其 NeedPair 标志，同步定时器置 idle，之后必须手动按 CH 才能重配。
+; 调试: 看对应通道 Flags 的 NeedPair 位是否被清除。
+F_RF_CloseUnpairedChannels:
+		LDX		#00H
+		JSR		F_RF_CloseSelectedIfUnpaired
+		LDX		#0AH
+		JSR		F_RF_CloseSelectedIfUnpaired
+		LDX		#14H
+		JMP		F_RF_CloseSelectedIfUnpaired
+
+; 输入: X=通道记录偏移(0/10/20)。
+; 输出: 若该通道为 NeedPair 且非 ManualRetry，则关闭（清 NeedPair、SyncTm 置 idle）。
+; 调试: 看 Flags 的 NeedPair 消失，SyncTm 变为 FF。
+F_RF_CloseSelectedIfUnpaired:
+		LDA		R_RF1Flags,X
+		AND		#D_RFNeedPair
+		BEQ		RF_CloseSelectedIfUnpaired_End
+		LDA		R_RF1Flags,X
+		AND		#D_RFManualRetry
+		BNE		RF_CloseSelectedIfUnpaired_End
+		; 关闭该通道：清 NeedPair，同步定时器置 idle
+		LDA		R_RF1Flags,X
+		AND		#(.NOT.(D_RFNeedPair))
+		STA		R_RF1Flags,X
+		; X→Y 偏移映射：0→0, 0AH→1, 14H→2
+		CPX		#00H
+		BEQ		RF_CloseSync_Ch1
+		CPX		#0AH
+		BEQ		RF_CloseSync_Ch2
+		LDY		#02H
+		JMP		RF_CloseSync_SetIdle
+RF_CloseSync_Ch1:
+		LDY		#00H
+		JMP		RF_CloseSync_SetIdle
+RF_CloseSync_Ch2:
+		LDY		#01H
+RF_CloseSync_SetIdle:
+		LDA		#C_RFSyncIdle
+		STA		R_RF1SyncTm,Y
+RF_CloseSelectedIfUnpaired_End:
 		RTS
 
 ; 输入: RTC+1 当前分钟值。
@@ -1004,9 +1051,18 @@ F_RF_ServiceSelectedChannelMinute:	; X=通道记录偏移(0/10/20), Y=同步计时偏移(0/1
 		CLC
 		ADC		#01H
 		STA		R_RF1MissMin,X
+		; 60 分钟检查：>= 60 且 RetryStage == 0
 		CMP		#C_RFFail60Min
+		BCC		?Chk120
+		LDA		R_RF1RetryStage,X
 		BEQ		RF_SelectedChannelEnter60MinLongRecv
+?Chk120:
+		; 120 分钟检查：>= 120 且 RetryStage == 1
+		LDA		R_RF1MissMin,X
 		CMP		#C_RFFail120Min
+		BCC		RF_ServiceSelectedChannelMinute_End
+		LDA		R_RF1RetryStage,X
+		CMP		#01H
 		BEQ		RF_SelectedChannelEnter120MinLongRecv
 RF_ServiceSelectedChannelMinute_End:
 		RTS
