@@ -570,9 +570,9 @@ Disp_ProductShowRFStateIcon:
 			LDA		R_RFStatus
 			AND		#D_RFLongRecv
 			BNE		Disp_ProductShowRFStateBlink
-			LDA		R_RFStatus
-			AND		#D_RFRecvBusy
-			BNE		Disp_ProductShowRFStateOn
+;			LDA		R_RFStatus
+;			AND		#D_RFRecvBusy
+;			BNE		Disp_ProductShowRFStateOn
 			JSR		Disp_ProductLoadRFViewOffset
 			LDA		R_RF1Flags,X
 			AND		#D_RFValid

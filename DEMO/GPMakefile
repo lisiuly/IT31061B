@@ -1,6 +1,6 @@
 #####################################################################
 #
-#	Created by 6502 ASM Project		2026-6-11 09:09:38
+#	Created by 6502 ASM Project		2026-6-11 09:39:12
 #
 #####################################################################
 
@@ -52,7 +52,7 @@ OBJFILES		= \
 	".\RELEASE\ALARM.OBJ"\
 	".\RELEASE\RF.OBJ"
 
-OUTPUTFILES		= "$(IMDIR)\*.resobj" \
+OUTPUTFILES		=  \
 				  "$(IMDIR)\*.asm" \
 				  "$(IMDIR)\*.lst" \
 				  "$(IMDIR)\*.obj" \
