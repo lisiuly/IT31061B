@@ -37,6 +37,7 @@ D_RFLowBat		equ	02h
 D_RFLost			equ	04h
 D_RFNeedPair		equ	08h
 D_RFManualRetry		equ	10h
+D_RFBlocked		equ	80h	; 上电长接收未配对 → 阻塞后续自动接收，需手动按 CH 键清除
 
 C_RFLongRecv3Min		equ	180
 C_RFAutoSwitch4Sec		equ	4
@@ -535,9 +536,14 @@ RF_CheckLongReceive:
 RF_StopLongReceive_Timeout:
 		; 手动清通道后若 3 分钟仍未收到，需要从这里转入掉码分钟规则。
 		JSR		F_RF_ArmManualRetryChannels
-		; 3 分钟到了仍未配对的通道（未手动清但也没收到包），关闭其 NeedPair，
+		; 3 分钟到了仍未配对的通道（未手动清但也没收到包），阻塞其后续自动接收，
 		; 之后必须手动按 CH 键才能重新打开配对。
-		JSR		F_RF_CloseUnpairedChannels
+		LDX		#00H
+		JSR		F_RF_CloseSelectedIfUnpaired
+		LDX		#0AH
+		JSR		F_RF_CloseSelectedIfUnpaired
+		LDX		#14H
+		JSR		F_RF_CloseSelectedIfUnpaired
 		; 3 分钟长接收到点后，统一走 StopLongReceive 收口并关闭 RF_EN。
 		JSR		F_RF_StopLongReceive
 
@@ -579,21 +585,9 @@ F_RF_ArmSelectedManualRetryChannel:
 RF_ArmSelectedManualRetryChannel_End:
 		RTS
 
-; 输入: 无。
-; 输出: 把 3 分钟长接收后仍未配对的通道（NeedPair 且非 ManualRetry）关闭，
-;        清除其 NeedPair 标志，同步定时器置 idle，之后必须手动按 CH 才能重配。
-; 调试: 看对应通道 Flags 的 NeedPair 位是否被清除。
-F_RF_CloseUnpairedChannels:
-		LDX		#00H
-		JSR		F_RF_CloseSelectedIfUnpaired
-		LDX		#0AH
-		JSR		F_RF_CloseSelectedIfUnpaired
-		LDX		#14H
-		JMP		F_RF_CloseSelectedIfUnpaired
-
 ; 输入: X=通道记录偏移(0/10/20)。
-; 输出: 若该通道为 NeedPair 且非 ManualRetry，则关闭（清 NeedPair、SyncTm 置 idle）。
-; 调试: 看 Flags 的 NeedPair 消失，SyncTm 变为 FF。
+; 输出: 若该通道为 NeedPair 且非 ManualRetry，则置 D_RFBlocked 阻塞位，同步定时器 idle。
+; 调试: 看 Flags 的 Blocked 位是否置位，NeedPair 保持不变。
 F_RF_CloseSelectedIfUnpaired:
 		LDA		R_RF1Flags,X
 		AND		#D_RFNeedPair
@@ -601,9 +595,9 @@ F_RF_CloseSelectedIfUnpaired:
 		LDA		R_RF1Flags,X
 		AND		#D_RFManualRetry
 		BNE		RF_CloseSelectedIfUnpaired_End
-		; 关闭该通道：清 NeedPair，同步定时器置 idle
+		; 阻塞该通道：置 D_RFBlocked（NeedPair 保留），同步定时器置 idle
 		LDA		R_RF1Flags,X
-		AND		#(.NOT.(D_RFNeedPair))
+		ORA		#D_RFBlocked
 		STA		R_RF1Flags,X
 		; X→Y 偏移映射：0→0, 0AH→1, 14H→2
 		CPX		#00H
@@ -641,10 +635,10 @@ RF_ServiceMinuteTick_End:
 ; 输入: A=通道号。
 ; 输出: 清 lost/NeedPair，置 valid，并把该通道掉码与重试计数清零。
 ; 调试: 收到有效包后看对应通道 Flags 是否从 Lost/NeedPair 变成 Valid。
-F_RF_SetSelectedChannelValid:		; A=通道号，清掉 lost/retry 并恢复有效标志
+F_RF_SetSelectedChannelValid:		; A=通道号，清掉 lost/retry/blocked 并恢复有效标志
 		JSR		F_RF_LoadSelectedChannelOffsets
 		LDA		R_RF1Flags,X
-		AND		#(.NOT.(D_RFLost+D_RFNeedPair+D_RFManualRetry))
+		AND		#(.NOT.(D_RFLost+D_RFNeedPair+D_RFManualRetry+D_RFBlocked))
 		ORA		#D_RFValid
 		STA		R_RF1Flags,X
 		LDA		#00H
@@ -1076,8 +1070,15 @@ RF_SelectedChannelEnter60MinLongRecv:
 		JMP		F_RF_StartLongReceive
 
 RF_SelectedChannelEnter120MinLongRecv:
-		; 到 120 分钟后进入小时重试模式：马上开 1 次长接收，
+		; 到 120 分钟后清除 ID，进入小时重试模式：马上开 1 次长接收，
 		; 之后每次长接收结束再等完整 60 分钟，总共尝试 3 次。
+		LDA		#00H
+		STA		R_RF1IdH,X
+		STA		R_RF1IdL,X
+		LDA		R_RF1Flags,X
+		AND		#(.NOT.(D_RFValid+D_RFLost))
+		ORA		#D_RFNeedPair
+		STA		R_RF1Flags,X
 		LDA		#C_RFHourlyRetryStageFirst
 		STA		R_RF1RetryStage,X
 		LDA		#C_RFFailRetry63Min
@@ -1152,28 +1153,28 @@ F_RF_IsCurrentFrameConfirmed:		; 判断当前帧是否和上一帧完全一致
 		RTS
 
 RF_CheckPendingFrame:
-		; 五个 Packet 字节必须全等，任何一字节不同都把当前帧改写成新的 pending。
+		; 五个 Packet 字节必须全等，任何一字节不同都清掉 pending 重新来过。
 		LDA		R_RFPacket0
 		CMP		R_RFPending0
-		BNE		RF_SaveCurrentAsPending
+		BNE		RF_MismatchClearAll
 		LDA		R_RFPacket1
 		CMP		R_RFPending1
-		BNE		RF_SaveCurrentAsPending
+		BNE		RF_MismatchClearAll
 		LDA		R_RFPacket2
 		CMP		R_RFPending2
-		BNE		RF_SaveCurrentAsPending
+		BNE		RF_MismatchClearAll
 		LDA		R_RFPacket3
 		CMP		R_RFPending3
-		BNE		RF_SaveCurrentAsPending
+		BNE		RF_MismatchClearAll
 		LDA		R_RFPacket4
 		CMP		R_RFPending4
-		BNE		RF_SaveCurrentAsPending
+		BNE		RF_MismatchClearAll
 		SEC
 		RTS
 
-RF_SaveCurrentAsPending:
-		; 连续帧不一致，说明当前帧不能用，但它可能是新一轮重复帧的第一帧。
-		JSR		F_RF_SavePendingFrame
+RF_MismatchClearAll:
+		; 新旧两帧不一致，两帧都不可信，清掉 pending 等下一轮重新收。
+		JSR		F_RF_ClearPendingFrame
 		CLC
 		RTS
 
@@ -1190,6 +1191,7 @@ F_RF_IsRequestChannelPacketAccepted:	; 判断当前包是否允许写入请求通道
 
 RF_IsChannel1PacketAccepted:
 		LDA		R_RF1Flags
+		BMI		RF_RequestChannelPacketReject	; bit7（D_RFBlocked）→ 被阻塞，拒绝
 		AND		#D_RFNeedPair
 		; NeedPair 说明 CH1 还没绑定过 ID，当前包直接允许写入。
 		BNE		RF_RequestChannelPacketAccept
@@ -1202,6 +1204,7 @@ RF_IsChannel1PacketAccepted:
 
 RF_IsChannel2PacketAccepted:
 		LDA		R_RF2Flags
+		BMI		RF_RequestChannelPacketReject	; bit7（D_RFBlocked）→ 被阻塞，拒绝
 		AND		#D_RFNeedPair
 		BNE		RF_RequestChannelPacketAccept
 		LDA		R_RFPacket0
@@ -1212,11 +1215,16 @@ RF_IsChannel2PacketAccepted:
 
 RF_IsChannel3PacketAccepted:
 		LDA		R_RF3Flags
+		BMI		RF_RequestChannelPacketReject	; bit7（D_RFBlocked）→ 被阻塞，拒绝
 		AND		#D_RFNeedPair
 		BNE		RF_RequestChannelPacketAccept
 		LDA		R_RFPacket0
 		CMP		R_RF3IdL
 		BEQ		RF_RequestChannelPacketAccept
+		CLC
+		RTS
+
+RF_RequestChannelPacketReject:
 		CLC
 		RTS
 
@@ -1340,12 +1348,15 @@ RF_FeedLowPulse_CheckCapture:
 		BCC		RF_FeedLowPulse_Bit0
 
 RF_FeedLowPulse_Invalid:
-		; 中途遇到非法低脉宽，整帧作废，等待下一次停止位重开。
+		; 中途遇到非法低脉宽，整帧作废；但如果上一帧主循环还没处理，不抢清。
 		JSR		F_RF_ResetPacketBuffer
 		RTS
 
 RF_FeedLowPulse_StartFrame:
 		; 锁定一帧新的数据，后续 bit 从 Packet0 的 bit7 开始依次写入。
+		; 如果上一帧主循环还没处理完，不抢清，避免丢帧。
+;		LDA		R_RFParsePending
+;		BNE		RF_FeedLowPulse_End
 		JSR		F_RF_ResetPacketBuffer
 		LDA		#01H
 		STA		R_RFCaptureActive
@@ -1472,6 +1483,8 @@ F_RF_ParsePacket:			; 满 36bit 后做双帧确认，再按通道码和已绑定 ID 决定是否落库
 		; 旧逻辑在单帧满 36bit 后立即落库并判成功，和协议“连续两帧一致后才有效”冲突。
 		JSR		F_RF_IsCurrentFrameConfirmed
 		BCC		RF_ParsePacket_Clear
+		; 双帧确认通过后统一清 pending，无论后续是否被通道规则拒绝。
+		JSR		F_RF_ClearPendingFrame
 
 		; Packet1 bit5~4 是通道码：30h/00h 走 CH1，20h 走 CH2，其余按 CH3 处理。
 		LDA		R_RFPacket1
@@ -1492,7 +1505,6 @@ RF_ParsePacket_CH1:
 		BCC		RF_ParsePacket_Clear
 		; 验收通过才落库，并收口这次接收窗口。
 		JSR		F_RF_LoadPacketToRequestChannel
-		JSR		F_RF_ClearPendingFrame
 		JSR		F_RF_OnReceiveOK
 		JMP		RF_ParsePacket_Clear
 
@@ -1502,7 +1514,6 @@ RF_ParsePacket_CH2:
 		JSR		F_RF_IsRequestChannelPacketAccepted
 		BCC		RF_ParsePacket_Clear
 		JSR		F_RF_LoadPacketToRequestChannel
-		JSR		F_RF_ClearPendingFrame
 		JSR		F_RF_OnReceiveOK
 		JMP		RF_ParsePacket_Clear
 
@@ -1512,7 +1523,6 @@ RF_ParsePacket_CH3:
 		JSR		F_RF_IsRequestChannelPacketAccepted
 		BCC		RF_ParsePacket_Clear
 		JSR		F_RF_LoadPacketToRequestChannel
-		JSR		F_RF_ClearPendingFrame
 		JSR		F_RF_OnReceiveOK
 
 RF_ParsePacket_Clear:

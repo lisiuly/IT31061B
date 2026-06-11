@@ -412,11 +412,14 @@ Disp_ProductLoadRFViewOffset_End:
 Disp_ProductHasOutdoorData:
 			JSR		Disp_ProductLoadRFViewOffset
 			LDA		R_RF1Flags,X
+			AND		#D_RFValid
+			BNE		Disp_ProductHasOutdoorData_Yes	; Valid → 有数据
+			LDA		R_RF1Flags,X
 			AND		#D_RFNeedPair
-			BNE		Disp_ProductHasOutdoorData_No
+			BNE		Disp_ProductHasOutdoorData_No	; NeedPair → 无数据
 			LDA		R_RF1Flags,X
 			AND		#D_RFLost
-			BEQ		Disp_ProductHasOutdoorData_Yes
+			BEQ		Disp_ProductHasOutdoorData_No	; 三标志全无 → 无数据
 			; 掉码已达 60 分钟以上：即使长接收期间也不显示旧数据，保持 -- 闪烁
 			LDA		R_RF1MissMin,X
 			CMP		#C_RFFail60Min
