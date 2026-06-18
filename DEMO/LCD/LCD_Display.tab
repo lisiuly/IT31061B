@@ -199,7 +199,7 @@ F_DisplayHLValue:
 ;;==============================================================================
 ;LCD seg com define
 ;===============================================================================
-LCD_Emulator	equ	1			;1为调试，0为实际com seg
+LCD_Emulator	equ	0		;1为调试，0为实际com seg
 .IF	LCD_Emulator
 com0            EQU	0H
 com1            EQU	1H

@@ -104,7 +104,7 @@ D_20Sec				equ	40
 Key_Status			ds		1
 R_LongKeyTime		ds		1		
 	
-R_TempTime			ds		1
+; R_TempTime			ds		1
 R_SetBack			ds		1
 C_Sleep20Sec	equ	40	
 
@@ -127,8 +127,8 @@ C_KeyDebounce		equ		2
 ;---------------------------------------------------
 R_LEDTemp		ds	1
 
-R_ToneDuty		ds	1
-R_ToneVol		ds	1
+; R_ToneDuty		ds	1
+; R_ToneVol		ds	1
 ;=====================================================
 .CODE
 
@@ -274,8 +274,7 @@ Enable_FcClearKey:			; 短按切换 C/F，Mold 页循环阈值
 ; 输出: 当前产品无长按功能，仅保留统一按键刷新入口。
 ; 调试: 看长按 C/F 时不会触发额外状态改变。
 Enable_longFcClearKey:
-		JSR		F_UpdateKey
-		RTS
+		JMP		F_UpdateKey
 
 LongFcClearKey_Exit:
 		RTS
@@ -287,8 +286,8 @@ Enable_longAllTimeKey:
 		JSR		F_UpdateKey
 		JMP		F_RF_ClearCurrentChannel
 
-LongAllTimeKey_Exit:
-		RTS
+;LongAllTimeKey_Exit:
+;		RTS
 		
 				
 ;==========================================

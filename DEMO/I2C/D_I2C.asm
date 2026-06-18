@@ -42,28 +42,28 @@ C_Read:		 .EQU		00000001b
 ;==========================================
 ; Public declare area
 ;==========================================
-.PUBLIC		R_Wbuff
+;.PUBLIC		R_Wbuff
 .PUBLIC		R_Wbuff1
-.PUBLIC		P_IOB_DIR_Map
-.PUBLIC		P_IOC_DIR_Map
+;.PUBLIC		P_IOB_DIR_Map
+;.PUBLIC		P_IOC_DIR_Map
 .PUBLIC		P_IOD_DIR_Map
-.PUBLIC		P_IOA_DIR_Map
-.PUBLIC		P_IOA_Attrib_Map	
+;.PUBLIC		P_IOA_DIR_Map
+;.PUBLIC		P_IOA_Attrib_Map	
 .PUBLIC		R_SaveData
 .PUBLIC		R_PortD_Data_Buf
 ;==========================================
 ;Variable RAM declare area
 ;==========================================
 .PAGE0
-R_Wbuff				.DS	1
+; R_Wbuff				.DS	1
 R_Wbuff1			.ds	1
-P_IOB_DIR_Map		.DS	1		;
-P_IOC_DIR_Map		.DS	1		;
+; P_IOB_DIR_Map		.DS	1		;
+; P_IOC_DIR_Map		.DS	1		;
 P_IOD_DIR_Map		.DS	1		;
-P_IOA_DIR_Map		.DS	1	
+; P_IOA_DIR_Map		.DS	1	
 R_PortD_Data_Buf	ds	1
 
-P_IOA_Attrib_Map	ds	1
+; P_IOA_Attrib_Map	ds	1
 R_SaveData			ds	6
 R_ACK_Timeout		ds	1
 R_ACK_Err			ds	1
@@ -187,8 +187,7 @@ F_IIC_start:	; SCL == H, SDA = H to L
 		JSR		F_I2C_Delay
 		JSR		B_SDA_0
 		JSR		F_I2C_Delay
-		JSR		F_I2C_Delay	
-			RTS
+		JMP		F_I2C_Delay	
 ;=========================================================
 .PUBLIC	F_IIC_stop				
 ;****************************************			
@@ -198,8 +197,7 @@ F_IIC_stop:		; SCL == L, SDA = L to H
 		JSR		B_SCL_1
 		JSR		F_I2C_Delay
 		JSR		B_SDA_1
-		JSR		F_I2C_Delay	
-			RTS	
+		JMP		F_I2C_Delay	
 ;=========================================================
 .PUBLIC	F_IIC_Set8bit			
 ;****************************************	

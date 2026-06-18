@@ -309,7 +309,7 @@ ProcessHumidity_ConvertBCD:
 F_Judge_HHLL:
 	%bitr	R_SpecFlag,(D_TempLL+D_TempHH+D_HumLL+D_HumHH)
 	JSR		F_Judge_TempHHLL
-	JMP		F_Judge_HumHHLL
+;	JMP		F_Judge_HumHHLL
 
 ; 输入：当前室内温度显示缓冲与负号标志。
 ; 输出：按规格重算温度 HH/LL 状态位。
@@ -337,9 +337,9 @@ JudgeTempLL:
 ; 输入：当前室内湿度显示状态。
 ; 输出：当前产品固定不产生湿度 HH/LL，直接返回。
 ; 调试：确认室内湿度始终只走 1~99 显示，不再出现 HH/LL 状态位。
-F_Judge_HumHHLL:
+;F_Judge_HumHHLL:
 	; 86428 规格要求室内湿度始终夹在 1~99%RH 显示，不再出现 HH/LL。
-	RTS
+;	RTS
 
 ;-------------------------------------------------------
 ; 函数: F_IsCurrentTempInRange

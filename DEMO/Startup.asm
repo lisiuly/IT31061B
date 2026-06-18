@@ -212,6 +212,7 @@ L_ServiceLoop:
 		JSR		F_RetryFirstTHRead
 		JSR		F_RF_ServicePendingParse
 		JSR		F_Display
+		JSR		F_RF_ServicePendingParse	; Display∫Û¡¢øÃºÏ≤ÈRF÷°
 		
 	?L_NoDispNormal:
 		LDA		R_2Hz		;2HzªΩ–—

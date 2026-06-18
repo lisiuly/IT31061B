@@ -148,8 +148,7 @@ F_ReadGXHTV4Data:
 		STA			CNT6
 		JSR			F_crc_check_handle
 		BCC			F_ReadGXHTV4Data_Exit
-		JSR			CAL_IC_HUM
-		RTS
+		JMP			CAL_IC_HUM
 
 F_ReadGXHTV4StopExit:
 		JSR			F_IIC_stop

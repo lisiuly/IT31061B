@@ -60,7 +60,6 @@ C_RFStopLowMaxSample		equ	16H
 .EXTERN		R_RFPacket2
 .EXTERN		R_RFPacket3
 .EXTERN		R_RFPacket4
-.EXTERN		R_RFPacket5
 
 .EXTERN		R_RF1Flags
 .EXTERN		R_RF1IdH
