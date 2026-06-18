@@ -7,14 +7,14 @@
 		LastBuildVersion="1.3.0"
 		ActiveCfgName="Release"
 		GUID="{42C7D3BF-1E4E-4D73-B672-714D0422E288}"
-		DowloadMode="0"
-		LanguageName="6502ASM"
-		BodyPath=".\\Body\\6502\\GPL813\\ASM"
-		Name="IT31061B"
 		Version="1.0.0.0"
+		Name="IT31061B"
+		BodyPath=".\\Body\\6502\\GPL813\\ASM"
+		LanguageName="6502ASM"
+		DowloadMode="0"
 		BodySeries="GPL813"
-		PrevProjectPath="E:\\project\\IT31061B\\DEMO"
 		ConfigPaneChanged="0"
+		PrevProjectPath="E:\\project\\IT31063B\\IT31061B\\DEMO"
 	</Properties>
 	<Configurations>
 		<Configuration>

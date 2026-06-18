@@ -1,11 +1,11 @@
 #####################################################################
 #
-#	Created by 6502 ASM Project		2026-6-11 09:39:12
+#	Created by 6502 ASM Project		2026-6-18 11:32:42
 #
 #####################################################################
 
 TOOLSDIR		= C:\PROGRA~2\GENERA~1\GPIDE_~1.0\Tools\Compiler\6502
-PROJECTDIR		= E:\project\IT31061B\DEMO
+PROJECTDIR		= E:\project\IT31063B\IT31061B\DEMO
 BODYPATH		= C:\Program Files (x86)\Generalplus\GPIDE_6502 1.3.0\gplus\project\Body\6502\GPL813
 OUTPUTDIR		= .\Release
 IMDIR			= .\Release

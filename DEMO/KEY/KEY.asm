@@ -153,7 +153,8 @@ F_KeyScan:
 
 	?L_CheckFcClearKey:
 		LDA		P_IO_PortE_Data
-		AND		#D_Bit1
+		; AND		#D_Bit1
+		AND		#D_Bit2		
 		BEQ		?L_CheckAllTimeKey
 		LDA		R_KeyTemp
 		ORA		#D_KeyFcClear
@@ -161,7 +162,8 @@ F_KeyScan:
 
 	?L_CheckAllTimeKey:
 		LDA		P_IO_PortE_Data
-		AND		#D_Bit2
+		; AND		#D_Bit2
+		AND		#D_Bit1		
 		BEQ		?L_HaveKey
 		LDA		R_KeyTemp
 		ORA		#D_KeyAllTime

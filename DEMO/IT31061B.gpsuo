@@ -27,8 +27,8 @@
 			Path=".\\Int_Vec.asm"
 			Path=".\\LCD\\LCD_Display.tab"
 			Path=".\\I2C\\D_I2C.asm"
-			Path=".\\Startup.asm"
 			Path="..\\..\\IT31062B\\IT31061B\\DEMO\\GXHTV4\\GXHTV4.asm"
+			Path=".\\Startup.asm"
 			Path=".\\Release\\IT31061B_Report.html"
 		</OpenFiles>
 		<OpenFolders>
